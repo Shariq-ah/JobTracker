@@ -19,6 +19,9 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Give execute permission
+        run: chmod +x mvnw
+
       - name: Build JAR
         run: ./mvnw clean package -DskipTests
 
