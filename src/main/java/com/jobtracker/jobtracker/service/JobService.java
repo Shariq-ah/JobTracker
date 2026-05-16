@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -40,6 +41,9 @@ public class JobService {
     public void checkJobs(){
 
         log.info("Checking jobs...");
+
+        log.info("Using token: {}", token);
+        log.info("Using chatId: {}", chatId);
 
         List<Job> jobList = jobProvider.fetchJobs();
 
@@ -89,15 +93,26 @@ public class JobService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
+//            Map<String, Object> payload = new HashMap<>();
+//            payload.put("chat_id", chatId);
+//            payload.put("text", message);
+//            payload.put("parse_mode", "HTML");
+
             Map<String, Object> payload = new HashMap<>();
             payload.put("chat_id", chatId);
-            payload.put("text", message);
-            payload.put("parse_mode", "HTML");
+            payload.put("text", "Test: " + job.getTitle());
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
             RestTemplate restTemplate = new RestTemplate();
 
-            restTemplate.postForObject(url, request, String.class);
+            ResponseEntity<String> response = restTemplate.exchange(
+                    url,
+                    org.springframework.http.HttpMethod.POST,
+                    request,
+                    String.class
+            );
+            log.info("Telegram status: {}", response.getStatusCode());
+            log.info("Telegram body: {}", response.getBody());
 
             log.info("Telegram notification sent");
 
