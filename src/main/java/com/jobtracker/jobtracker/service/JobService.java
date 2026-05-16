@@ -93,14 +93,11 @@ public class JobService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-//            Map<String, Object> payload = new HashMap<>();
-//            payload.put("chat_id", chatId);
-//            payload.put("text", message);
-//            payload.put("parse_mode", "HTML");
-
             Map<String, Object> payload = new HashMap<>();
             payload.put("chat_id", chatId);
-            payload.put("text", "Test: " + job.getTitle());
+            payload.put("text", message);
+            payload.put("parse_mode", "HTML");
+
 
             HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
             RestTemplate restTemplate = new RestTemplate();
