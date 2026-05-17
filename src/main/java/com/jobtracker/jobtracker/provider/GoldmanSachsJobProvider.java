@@ -190,6 +190,11 @@ public class GoldmanSachsJobProvider implements JobProvider {
         }
     }
 
+    @Override
+    public String getCompanyName() {
+        return "Goldman Sachs";
+    }
+
 
     private List<Job> parse(String json) throws Exception{
 
