@@ -5,15 +5,21 @@ import com.jobtracker.jobtracker.provider.JobProvider;
 import com.jobtracker.jobtracker.repository.JobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class JobService {
@@ -30,6 +36,9 @@ public class JobService {
     private final List<JobProvider> providers;
     private final SkillMatcherService skillMatcher;
 
+    @Autowired
+    private ExperienceFilterService experienceFilterService;
+
     public JobService(JobRepository repository,
                       List<JobProvider> providers,
                       SkillMatcherService skillMatcher) {
@@ -39,46 +48,84 @@ public class JobService {
     }
 
     public void checkJobs() {
-
         log.info("Checking jobs across {} providers...", providers.size());
 
         for (JobProvider provider : providers) {
-
             log.info("Fetching from: {}", provider.getCompanyName());
 
             try {
                 List<Job> jobs = provider.fetchJobs();
                 log.info("{} jobs fetched from {}", jobs.size(), provider.getCompanyName());
 
+                // Filter already seen + obvious title mismatches before threading
+                List<Job> newJobs = new ArrayList<>();
                 for (Job job : jobs) {
                     if (!repository.existsById(job.getId())) {
-
-                        // fetch JD
-                        String jd = provider.fetchJobDescription(job.getExternalId());
-                        job.setDescription(jd);
-
-                        // match skills
-                        job = skillMatcher.match(job);
-
-                        // set first seen
-                        job.setFirstSeenAt(LocalDateTime.now());
-
-                        // save
-                        repository.save(job);
-
-                        log.info("NEW JOB: {} | Score: {}%",
-                                job.getTitle(), job.getMatchScore());
-
-                        // notify
-                        sendTelegram(job);
+                        if (!experienceFilterService.isTitleSuitable(job.getTitle())) {
+                            log.info("Skipping by title (no JD fetch): {}", job.getTitle());
+                        } else {
+                            newJobs.add(job);
+                        }
                     }
                 }
 
+                log.info("{} new jobs to process from {}", newJobs.size(), provider.getCompanyName());
+                if (newJobs.isEmpty()) continue;
+
+                long delayMs = provider.getCompanyName().equals("Microsoft") ? 2000 : 300;
+                ExecutorService executor = Executors.newFixedThreadPool(3);
+                List<Future<?>> futures = new ArrayList<>();
+
+                for (Job job : newJobs) {
+                    final Job jobRef = job;
+                    Future<?> future = executor.submit(() -> {
+                        try {
+                            Thread.sleep(delayMs);
+
+                            String jd = provider.fetchJobDescription(jobRef.getExternalId());
+                            jobRef.setDescription(jd);
+
+                            if (!experienceFilterService.isExperienceSuitable(jd, jobRef.getTitle())) {
+                                log.info("Skipping by experience: {}", jobRef.getTitle());
+                                return;
+                            }
+
+                            Job matched = skillMatcher.match(jobRef);
+                            matched.setFirstSeenAt(LocalDateTime.now());
+
+                            synchronized (repository) {
+                                if (!repository.existsById(matched.getId())) {
+                                    repository.save(matched);
+                                    log.info("NEW JOB: {} | Score: {}%",
+                                            matched.getTitle(), matched.getMatchScore());
+                                    sendTelegram(matched);
+                                }
+                            }
+
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            log.error("Thread interrupted for: {}", jobRef.getTitle());
+                        } catch (Exception e) {
+                            log.error("Error processing {}: {}", jobRef.getTitle(), e.getMessage());
+                        }
+                    });
+
+                    futures.add(future);
+                }
+
+                executor.shutdown();
+                boolean finished = executor.awaitTermination(2, TimeUnit.MINUTES);
+                if (!finished) {
+                    log.warn("Timeout waiting for {} JD fetches", provider.getCompanyName());
+                    executor.shutdownNow();
+                }
+
             } catch (Exception e) {
-                log.error("Error fetching from {}: {}",
-                        provider.getCompanyName(), e.getMessage());
+                log.error("Error fetching from {}: {}", provider.getCompanyName(), e.getMessage());
             }
         }
+
+        log.info("Job check complete.");
     }
 
     public void sendTelegram(Job job) {
@@ -141,11 +188,7 @@ public class JobService {
             RestTemplate restTemplate = new RestTemplate();
 
             ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    request,
-                    String.class
-            );
+                    url, HttpMethod.POST, request, String.class);
 
             log.info("Telegram status: {}", response.getStatusCode());
 

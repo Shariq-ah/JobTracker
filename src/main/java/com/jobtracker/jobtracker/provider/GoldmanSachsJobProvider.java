@@ -118,7 +118,7 @@ public class GoldmanSachsJobProvider implements JobProvider {
                     String.class
             );
 
-            log.info("Raw Response: {}", response.getBody());
+            //log.info("Raw Response: {}", response.getBody());
 
             return parse(response.getBody());
 
@@ -166,7 +166,7 @@ public class GoldmanSachsJobProvider implements JobProvider {
                 String.class
         );
 
-        log.info("JD RAW RESPONSE: {}", response.getBody());
+        //log.info("JD RAW RESPONSE: {}", response.getBody());
 
         try {
             JsonNode root = objectMapper.readTree(response.getBody());

@@ -50,7 +50,7 @@ public class BarclaysJobProvider implements JobProvider {
                         "&RecordsPerPage=16" +
                         "&Distance=50" +
                         "&RadiusUnitType=0" +
-                        "&Keywords=Software" +
+                        "&Keywords=Java" +
                         "&Location=" +
                         "&ShowRadius=False" +
                         "&IsPagination=" + (page > 1 ? "True" : "False") +
