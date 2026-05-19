@@ -13,7 +13,7 @@ public class JobScheduler {
         this.service = service;
     }
 
-    @Scheduled(fixedRate = 1800000)
+    @Scheduled(fixedDelay = 900000, initialDelay = 10000) // wait 10s on startup, then every 15 mins
     public void run(){
         System.out.println("Job Started : ");
         service.checkJobs();
