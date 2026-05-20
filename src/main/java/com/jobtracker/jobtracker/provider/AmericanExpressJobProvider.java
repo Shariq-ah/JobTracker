@@ -136,11 +136,7 @@ public class AmericanExpressJobProvider implements JobProvider {
             HttpEntity<String> entity = new HttpEntity<>(headers);
 
             ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    String.class
-            );
+                    url, HttpMethod.GET, entity, String.class);
 
             JsonNode root = objectMapper.readTree(response.getBody());
             JsonNode items = root.path("items");
@@ -150,9 +146,16 @@ public class AmericanExpressJobProvider implements JobProvider {
                 return "";
             }
 
-            String html = items.get(0).path("ExternalDescriptionStr").asText("");
+            JsonNode item = items.get(0);
 
-            String cleanJD = Jsoup.parse(html).text()
+            // Combine all relevant sections
+            String descHtml         = item.path("ExternalDescriptionStr").asText("");
+            String respHtml         = item.path("ExternalResponsibilitiesStr").asText("");
+            String qualHtml         = item.path("ExternalQualificationsStr").asText("");
+
+            String combined = descHtml + " " + respHtml + " " + qualHtml;
+
+            String cleanJD = Jsoup.parse(combined).text()
                     .replaceAll("\\s+", " ")
                     .trim();
 

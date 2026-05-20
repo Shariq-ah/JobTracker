@@ -119,48 +119,51 @@ public class MicrosoftJobProvider implements JobProvider {
 
     @Override
     public String fetchJobDescription(String externalId) {
-        try {
-            // externalId = atsJobId (200033959)
-            // But position_details needs position_id (1970393556856063)
-            // So we store id (not atsJobId) as externalId
-            String url = BASE_URL + "/api/pcsx/position_details" +
-                    "?position_id=" + externalId +
-                    "&domain=microsoft.com&hl=en";
+        int maxRetries = 3;
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "Mozilla/5.0");
-            headers.set("Accept", "application/json");
-            headers.set("Referer", "https://jobs.microsoft.com/en/jobs/search");
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                // Increasing delay per attempt
+                Thread.sleep(attempt * 1000L);
 
-            HttpEntity<String> entity = new HttpEntity<>(headers);
+                String url = BASE_URL + "/api/pcsx/position_details" +
+                        "?position_id=" + externalId +
+                        "&domain=microsoft.com&hl=en";
 
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    String.class
-            );
+                HttpHeaders headers = new HttpHeaders();
+                headers.set("User-Agent", "Mozilla/5.0");
+                headers.set("Accept", "application/json");
+                headers.set("Referer", "https://jobs.microsoft.com/en/jobs/search");
 
-            JsonNode root = objectMapper.readTree(response.getBody());
+                HttpEntity<String> entity = new HttpEntity<>(headers);
 
-            String html = root.path("data")
-                    .path("jobDescription").asText("");
+                ResponseEntity<String> response = restTemplate.exchange(
+                        url, HttpMethod.GET, entity, String.class);
 
-            if (html.isEmpty()) {
-                log.warn("No JD found for Microsoft job: {}", externalId);
-                return "";
+                JsonNode root = objectMapper.readTree(response.getBody());
+                String html = root.path("data").path("jobDescription").asText("");
+
+                if (html.isEmpty()) {
+                    log.warn("No JD found for Microsoft job: {}", externalId);
+                    return "";
+                }
+
+                String cleanJD = Jsoup.parse(html).text()
+                        .replaceAll("\\s+", " ")
+                        .trim();
+
+                log.info("Microsoft JD length for {}: {}", externalId, cleanJD.length());
+                return cleanJD;
+
+            } catch (Exception e) {
+                log.warn("Attempt {}/{} failed for Microsoft JD {}: {}",
+                        attempt, maxRetries, externalId, e.getMessage());
+                if (attempt == maxRetries) {
+                    log.error("All retries failed for Microsoft JD: {}", externalId);
+                    return "";
+                }
             }
-
-            String cleanJD = Jsoup.parse(html).text()
-                    .replaceAll("\\s+", " ")
-                    .trim();
-
-            log.info("Microsoft JD length for {}: {}", externalId, cleanJD.length());
-            return cleanJD;
-
-        } catch (Exception e) {
-            log.error("Failed to fetch Microsoft JD for {}: {}", externalId, e.getMessage());
-            return "";
         }
+        return "";
     }
 }
