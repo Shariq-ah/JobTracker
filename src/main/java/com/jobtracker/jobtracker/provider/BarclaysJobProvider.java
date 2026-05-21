@@ -172,6 +172,10 @@ public class BarclaysJobProvider implements JobProvider {
             job.setExternalId(jobId);
             job.setCompany("Barclays");
             job.setTitle(title);
+            if (!dateStr.isEmpty()) {
+                job.setPostedAt(LocalDate.parse(dateStr)
+                        .atStartOfDay());
+            }
             job.setLocation(location);
             job.setUrl(BASE_URL + href);
 

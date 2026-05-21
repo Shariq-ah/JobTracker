@@ -110,6 +110,10 @@ public class AmericanExpressJobProvider implements JobProvider {
             job.setExternalId(id);
             job.setCompany("American Express");
             job.setTitle(title);
+            if (!postedDate.isEmpty()) {
+                job.setPostedAt(LocalDate.parse(postedDate)
+                        .atStartOfDay());
+            }
             job.setLocation(location);
             job.setUrl("https://egug.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/job/" + id);
 

@@ -11,6 +11,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -104,6 +105,11 @@ public class MicrosoftJobProvider implements JobProvider {
             job.setExternalId(id);
             job.setCompany("Microsoft");
             job.setTitle(title);
+            job.setPostedAt(
+                    java.time.Instant.ofEpochSecond(postedTs)
+                            .atZone(ZoneId.of("UTC"))
+                            .toLocalDateTime()
+            );
             job.setLocation(location);
             job.setUrl("https://apply.careers.microsoft.com/careers/job/" + id);
 

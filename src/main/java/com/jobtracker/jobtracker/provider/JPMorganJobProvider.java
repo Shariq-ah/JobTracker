@@ -10,6 +10,7 @@ import org.springframework.web.client.RestTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -102,6 +103,10 @@ public class JPMorganJobProvider implements JobProvider {
             job.setExternalId(id);
             job.setCompany("JPMorgan Chase");
             job.setTitle(title);
+            if (!postedDate.isEmpty()) {
+                job.setPostedAt(LocalDate.parse(postedDate)
+                        .atStartOfDay());
+            }
             job.setLocation(location);
             job.setDescription(shortDesc);
             job.setUrl("https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/" + id);
