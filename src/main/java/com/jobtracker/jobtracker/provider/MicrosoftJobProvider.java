@@ -44,8 +44,6 @@ public class MicrosoftJobProvider implements JobProvider {
                     "&sort_by=timestamp" +
                     "&filter_include_remote=1" +
                     "&filter_profession=software engineering" +
-                    "&filter_seniority=Mid-Level" +
-                    "&filter_seniority=Senior" +
                     "&hl=en";
 
             HttpHeaders headers = new HttpHeaders();
@@ -110,7 +108,7 @@ public class MicrosoftJobProvider implements JobProvider {
             job.setUrl("https://apply.careers.microsoft.com/careers/job/" + id);
 
             jobs.add(job);
-            log.info("Microsoft job: {} | {}", title, location);
+            log.info("Microsoft job: {} | {} | {}", title, location, id);
         }
 
         log.info("Microsoft jobs after date filter: {}", jobs.size());

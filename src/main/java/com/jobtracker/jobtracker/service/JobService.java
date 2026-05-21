@@ -72,8 +72,11 @@ public class JobService {
                 log.info("{} new jobs to process from {}", newJobs.size(), provider.getCompanyName());
                 if (newJobs.isEmpty()) continue;
 
-                long delayMs = provider.getCompanyName().equals("Microsoft") ? 2000 : 300;
-                ExecutorService executor = Executors.newFixedThreadPool(3);
+                boolean isMicrosoft = provider.getCompanyName().equals("Microsoft");
+                long delayMs = isMicrosoft ? 3000 : 300;
+                int threadCount = isMicrosoft ? 1 : 3;
+
+                ExecutorService executor = Executors.newFixedThreadPool(threadCount);
                 List<Future<?>> futures = new ArrayList<>();
 
                 for (Job job : newJobs) {
@@ -83,6 +86,13 @@ public class JobService {
                             Thread.sleep(delayMs);
 
                             String jd = provider.fetchJobDescription(jobRef.getExternalId());
+
+                            // Skip if JD is empty — rate limited or not available
+//                            if (jd == null || jd.trim().isEmpty()) {
+//                                log.info("Skipping job with empty JD: {}", jobRef.getTitle());
+//                                return;
+//                            }
+
                             jobRef.setDescription(jd);
 
                             if (!experienceFilterService.isExperienceSuitable(jd, jobRef.getTitle())) {
