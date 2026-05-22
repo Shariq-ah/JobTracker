@@ -14,6 +14,7 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -173,8 +174,16 @@ public class BarclaysJobProvider implements JobProvider {
             job.setCompany("Barclays");
             job.setTitle(title);
             if (!dateStr.isEmpty()) {
-                job.setPostedAt(LocalDate.parse(dateStr)
-                        .atStartOfDay());
+                try {
+                    String dateWithYear = dateStr + " " + LocalDate.now().getYear();
+                    LocalDate postedDate = LocalDate.parse(dateWithYear,
+                            DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH));
+                    job.setPostedAt(postedDate
+                            .atStartOfDay(ZoneId.of("Asia/Kolkata"))
+                            .toLocalDateTime());
+                } catch (Exception e) {
+                    log.warn("Could not parse Barclays date: {}", dateStr);
+                }
             }
             job.setLocation(location);
             job.setUrl(BASE_URL + href);

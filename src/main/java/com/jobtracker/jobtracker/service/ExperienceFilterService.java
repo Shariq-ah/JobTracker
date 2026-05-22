@@ -25,13 +25,11 @@ public class ExperienceFilterService {
                 titleLower.contains("manager") ||
                 titleLower.contains("director") ||
                 titleLower.contains("vice president") ||
-                titleLower.contains("lead software") ||
-                titleLower.contains("software lead") ||
-                titleLower.contains("senior lead") ||
                 titleLower.contains(" vp ") ||
                 titleLower.contains("head of") ||
-                titleLower.contains("lead engineer") ||
-                titleLower.contains("engineering lead"));
+                titleLower.contains("engineering lead") ||
+                titleLower.contains("senior lead"));
+        // Removed: lead software, software lead, lead engineer
     }
 
     /**
