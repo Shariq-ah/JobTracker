@@ -1,6 +1,7 @@
 package com.jobtracker.jobtracker.service;
 
 import com.jobtracker.jobtracker.model.Job;
+import com.jobtracker.jobtracker.provider.DynamicJobProvider;
 import com.jobtracker.jobtracker.provider.JobProvider;
 import com.jobtracker.jobtracker.repository.JobRepository;
 import org.slf4j.Logger;
@@ -72,9 +73,15 @@ public class JobService {
                 log.info("{} new jobs to process from {}", newJobs.size(), provider.getCompanyName());
                 if (newJobs.isEmpty()) continue;
 
-                boolean isMicrosoft = provider.getCompanyName().equals("Microsoft");
-                long delayMs = isMicrosoft ? 3000 : 300;
-                int threadCount = isMicrosoft ? 1 : 3;
+                long delayMs;
+                int threadCount = 3;
+
+                if (provider instanceof DynamicJobProvider dynamicProvider) {
+                    delayMs = dynamicProvider.getConfig().getJdFetchDelayMs();
+                    threadCount = dynamicProvider.getConfig().getJdFetchThreads();
+                } else {
+                    delayMs = 300;
+                }
 
                 ExecutorService executor = Executors.newFixedThreadPool(threadCount);
                 List<Future<?>> futures = new ArrayList<>();

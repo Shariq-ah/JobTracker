@@ -1,6 +1,7 @@
-package com.jobtracker.jobtracker.provider;
+package com.jobtracker.jobtracker.provider.platform;
 
 import com.jobtracker.jobtracker.model.Job;
+import com.jobtracker.jobtracker.provider.config.JobProviderConfig;
 import org.jsoup.Jsoup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,15 +12,16 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
 @Component
-public class MicrosoftJobProvider implements JobProvider {
+public class MicrosoftPlatformHandler implements PlatformHandler {
 
-    private static final Logger log = LoggerFactory.getLogger(MicrosoftJobProvider.class);
+    private static final Logger log = LoggerFactory.getLogger(MicrosoftPlatformHandler.class);
 
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -27,42 +29,23 @@ public class MicrosoftJobProvider implements JobProvider {
     private static final String BASE_URL = "https://apply.careers.microsoft.com";
 
     @Override
-    public String getCompanyName() {
-        return "Microsoft";
-    }
-
-    @Override
-    public List<Job> fetchJobs() {
+    public List<Job> fetchJobs(JobProviderConfig config) {
         try {
             log.info("Calling Microsoft API...");
 
-            String url = BASE_URL + "/api/pcsx/search" +
-                    "?domain=microsoft.com" +
-                    "&query=" +
-                    "&location=India" +
-                    "&start=0" +
-                    "&num_items=25" +
-                    "&sort_by=timestamp" +
-                    "&filter_include_remote=1" +
-                    "&filter_profession=software engineering" +
-                    "&hl=en";
+            String url = config.getListUrl();
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("User-Agent", "Mozilla/5.0");
             headers.set("Accept", "application/json");
             headers.set("Referer", "https://jobs.microsoft.com/en/jobs/search");
 
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
             ResponseEntity<String> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    entity,
-                    String.class
-            );
+                    url, HttpMethod.GET,
+                    new HttpEntity<>(headers), String.class);
 
             log.info("Microsoft response status: {}", response.getStatusCode());
-            return parse(response.getBody());
+            return parse(response.getBody(), config);
 
         } catch (Exception e) {
             log.error("Error fetching Microsoft jobs: {}", e.getMessage());
@@ -70,7 +53,7 @@ public class MicrosoftJobProvider implements JobProvider {
         }
     }
 
-    private List<Job> parse(String json) throws Exception {
+    private List<Job> parse(String json, JobProviderConfig config) throws Exception {
         List<Job> jobs = new ArrayList<>();
 
         JsonNode root = objectMapper.readTree(json);
@@ -78,8 +61,9 @@ public class MicrosoftJobProvider implements JobProvider {
 
         log.info("Microsoft total jobs: {}", positions.size());
 
+        // Cutoff based on lookbackDays converted to hours
         long cutoffTs = Instant.now()
-                .minus(48, ChronoUnit.HOURS)
+                .minus(config.getLookbackDays() * 24L, ChronoUnit.HOURS)
                 .getEpochSecond();
 
         for (JsonNode node : positions) {
@@ -100,18 +84,19 @@ public class MicrosoftJobProvider implements JobProvider {
             String location = locationsNode.isEmpty() ? "India"
                     : locationsNode.get(0).asText();
 
+            // Convert postedTs to IST
+            LocalDateTime postedAt = Instant.ofEpochSecond(postedTs)
+                    .atZone(ZoneId.of("Asia/Kolkata"))
+                    .toLocalDateTime();
+
             Job job = new Job();
             job.setId("msft_" + id);
             job.setExternalId(id);
             job.setCompany("Microsoft");
             job.setTitle(title);
-            job.setPostedAt(
-                    java.time.Instant.ofEpochSecond(postedTs)
-                            .atZone(ZoneId.of("UTC"))
-                            .toLocalDateTime()
-            );
             job.setLocation(location);
-            job.setUrl("https://apply.careers.microsoft.com/careers/job/" + id);
+            job.setUrl(BASE_URL + positionUrl);
+            job.setPostedAt(postedAt);
 
             jobs.add(job);
             log.info("Microsoft job: {} | {} | {}", title, location, id);
@@ -122,27 +107,24 @@ public class MicrosoftJobProvider implements JobProvider {
     }
 
     @Override
-    public String fetchJobDescription(String externalId) {
+    public String fetchJobDescription(JobProviderConfig config, String externalId) {
         int maxRetries = 3;
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                // Increasing delay per attempt
-                Thread.sleep(attempt * 1000L);
+                Thread.sleep(attempt * 2000L);
 
-                String url = BASE_URL + "/api/pcsx/position_details" +
-                        "?position_id=" + externalId +
-                        "&domain=microsoft.com&hl=en";
+                String url = config.getJdUrl()
+                        .replace("{id}", externalId);
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.set("User-Agent", "Mozilla/5.0");
                 headers.set("Accept", "application/json");
                 headers.set("Referer", "https://jobs.microsoft.com/en/jobs/search");
 
-                HttpEntity<String> entity = new HttpEntity<>(headers);
-
                 ResponseEntity<String> response = restTemplate.exchange(
-                        url, HttpMethod.GET, entity, String.class);
+                        url, HttpMethod.GET,
+                        new HttpEntity<>(headers), String.class);
 
                 JsonNode root = objectMapper.readTree(response.getBody());
                 String html = root.path("data").path("jobDescription").asText("");
@@ -159,6 +141,9 @@ public class MicrosoftJobProvider implements JobProvider {
                 log.info("Microsoft JD length for {}: {}", externalId, cleanJD.length());
                 return cleanJD;
 
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return "";
             } catch (Exception e) {
                 log.warn("Attempt {}/{} failed for Microsoft JD {}: {}",
                         attempt, maxRetries, externalId, e.getMessage());
