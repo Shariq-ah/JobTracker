@@ -36,20 +36,49 @@ public class OracleHcmPlatformHandler implements PlatformHandler {
         try {
             log.info("Calling {} API...", config.getCompanyName());
 
-            String url = config.getListUrl() +
-                    "?onlyData=true" +
-                    "&expand=requisitionList.workLocation,requisitionList.otherWorkLocations," +
-                    "requisitionList.secondaryLocations,flexFieldsFacet.values," +
-                    "requisitionList.requisitionFlexFields" +
-                    "&finder=findReqs;siteNumber=" + config.getSiteNumber() + "," +
-                    "facetsList=LOCATIONS;WORK_LOCATIONS;WORKPLACE_TYPES;TITLES;CATEGORIES;" +
-                    "ORGANIZATIONS;POSTING_DATES;FLEX_FIELDS," +
-                    "limit=" + config.getLimit() + "," +
-                    "keyword=\"" + config.getKeyword() + "\"," +
-                    "lastSelectedFacet=POSTING_DATES," +
-                    "location=" + config.getLocationFilter() + "," +
-                    "selectedPostingDatesFacet=7," +
-                    "sortBy=" + config.getSortBy();
+            // Build base URL with common parameters
+            StringBuilder urlBuilder = new StringBuilder(config.getListUrl());
+            urlBuilder.append("?onlyData=true")
+                    .append("&expand=requisitionList.workLocation,requisitionList.otherWorkLocations,")
+                    .append("requisitionList.secondaryLocations,flexFieldsFacet.values,")
+                    .append("requisitionList.requisitionFlexFields")
+                    .append("&finder=findReqs;siteNumber=").append(config.getSiteNumber()).append(",")
+                    .append("facetsList=LOCATIONS;WORK_LOCATIONS;WORKPLACE_TYPES;TITLES;CATEGORIES;")
+                    .append("ORGANIZATIONS;POSTING_DATES;FLEX_FIELDS,")
+                    .append("limit=").append(config.getLimit()).append(",")
+                    .append("keyword=\"").append(config.getKeyword()).append("\",");
+
+            // Add lastSelectedFacet (different for AmEx vs JPMC)
+            if (config.getSelectedFlexFieldsFacets() != null) {
+                urlBuilder.append("lastSelectedFacet=AttributeChar6,");
+            } else {
+                urlBuilder.append("lastSelectedFacet=POSTING_DATES,");
+            }
+
+            // Add optional location filters
+            if (config.getLocationFilter() != null && !config.getLocationFilter().isEmpty()) {
+                urlBuilder.append("location=").append(config.getLocationFilter()).append(",");
+            }
+            if (config.getLocationId() != null) {
+                urlBuilder.append("locationId=").append(config.getLocationId()).append(",");
+            }
+            if (config.getSelectedLocationsFacet() != null) {
+                urlBuilder.append("selectedLocationsFacet=").append(config.getSelectedLocationsFacet()).append(",");
+            }
+
+            // Add optional category/flex field filters
+            if (config.getSelectedCategoriesFacet() != null) {
+                urlBuilder.append("selectedCategoriesFacet=").append(config.getSelectedCategoriesFacet()).append(",");
+            }
+            if (config.getSelectedFlexFieldsFacets() != null) {
+                urlBuilder.append("selectedFlexFieldsFacets=").append(config.getSelectedFlexFieldsFacets()).append(",");
+            }
+
+            // Add posting date and sort
+            urlBuilder.append("selectedPostingDatesFacet=7,")
+                    .append("sortBy=").append(config.getSortBy());
+
+            String url = urlBuilder.toString();
 
             HttpHeaders headers = new HttpHeaders();
             headers.set("User-Agent", "Mozilla/5.0");

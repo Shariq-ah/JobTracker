@@ -62,4 +62,15 @@ public class JobProviderConfig {
 
     // Job page URL template — use {id} as placeholder
     private String jobUrlTemplate;
+
+    // Workday-specific facet IDs
+    private String locationCountryId;  // Country facet ID (e.g., India)
+    private String timeTypeId;         // Time type facet ID (e.g., Full-time)
+    private String jobFamilyId;        // Job family facet ID (e.g., Software Engineering)
+
+    // Oracle HCM-specific optional facet fields
+    private String locationId;              // Location ID (e.g., JPMC: 300000000289360)
+    private String selectedLocationsFacet;  // Location facet (e.g., AmEx: 300000000228786)
+    private String selectedCategoriesFacet; // Category facet (e.g., JPMC: 300000086152753)
+    private String selectedFlexFieldsFacets; // Flex field facets (e.g., AmEx: "AttributeChar6|Technology")
 }

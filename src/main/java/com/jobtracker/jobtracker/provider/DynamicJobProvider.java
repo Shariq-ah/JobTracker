@@ -18,18 +18,21 @@ public class DynamicJobProvider implements JobProvider {
     private final MicrosoftPlatformHandler microsoftHandler;
     private final BarclaysPlatformHandler barclaysHandler;
     private final GoldmanSachsPlatformHandler goldmanHandler;
+    private final WorkdayPlatformHandler workdayHandler;
 
     public DynamicJobProvider(
             JobProviderConfig config,
             OracleHcmPlatformHandler oracleHcmHandler,
             MicrosoftPlatformHandler microsoftHandler,
             BarclaysPlatformHandler barclaysHandler,
-            GoldmanSachsPlatformHandler goldmanHandler) {
+            GoldmanSachsPlatformHandler goldmanHandler,
+            WorkdayPlatformHandler workdayHandler) {
         this.config = config;
         this.oracleHcmHandler = oracleHcmHandler;
         this.microsoftHandler = microsoftHandler;
         this.barclaysHandler = barclaysHandler;
         this.goldmanHandler = goldmanHandler;
+        this.workdayHandler = workdayHandler;
     }
 
     @Override
@@ -55,6 +58,7 @@ public class DynamicJobProvider implements JobProvider {
             case MICROSOFT_CAREERS -> microsoftHandler;
             case TALENTBREW -> barclaysHandler;
             case GOLDMAN_GRAPHQL -> goldmanHandler;
+            case WORKDAY -> workdayHandler;
         };
     }
 

@@ -31,22 +31,59 @@ public class GoldmanSachsPlatformHandler implements PlatformHandler {
         try {
             log.info("Calling Goldman Sachs API...");
 
-            // GraphQL query
+            // GraphQL query - updated structure
             String query = """
                     {
                       "operationName": "GetRoles",
                       "variables": {
-                        "filters": {
-                          "level": ["Associate"],
-                          "division": ["Software Engineering"],
-                          "location": ["Bengaluru","Mumbai","Hyderabad"],
-                          "region": ["India"]
-                        },
-                        "order": "POSTED_DATE_DESC",
-                        "page": 0,
-                        "pageSize": %d
+                        "searchQueryInput": {
+                          "page": {
+                            "pageSize": %d,
+                            "pageNumber": 0
+                          },
+                          "sort": {
+                            "sortStrategy": "POSTED_DATE",
+                            "sortOrder": "DESC"
+                          },
+                          "filters": [
+                            {
+                              "filterCategoryType": "EXPERIENCE_LEVEL",
+                              "filters": [
+                                {"filter": "Analyst", "subFilters": []},
+                                {"filter": "Associate", "subFilters": []}
+                              ]
+                            },
+                            {
+                              "filterCategoryType": "JOB_FUNCTION",
+                              "filters": [
+                                {"filter": "Software Engineering", "subFilters": []}
+                              ]
+                            },
+                            {
+                              "filterCategoryType": "LOCATION",
+                              "filters": [
+                                {
+                                  "filter": "India",
+                                  "subFilters": [
+                                    {"filter": "Karnataka", "subFilters": [{"filter": "Bengaluru", "subFilters": []}]},
+                                    {"filter": "Maharashtra", "subFilters": [{"filter": "Mumbai", "subFilters": []}]},
+                                    {"filter": "Telangana", "subFilters": [{"filter": "Hyderabad", "subFilters": []}]}
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "filterCategoryType": "SKILLSET",
+                              "filters": [
+                                {"filter": "Software Engineering", "subFilters": []}
+                              ]
+                            }
+                          ],
+                          "experiences": ["EARLY_CAREER", "PROFESSIONAL"],
+                          "searchTerm": "Java"
+                        }
                       },
-                      "query": "query GetRoles($filters: RoleFiltersInput, $order: String, $page: Int, $pageSize: Int) { roles(filters: $filters, order: $order, page: $page, pageSize: $pageSize) { hits { roleId title primaryLocation division level externalSource { sourceId } } total } }"
+                      "query": "query GetRoles($searchQueryInput: RoleSearchQueryInput!) { roleSearch(searchQueryInput: $searchQueryInput) { totalCount items { roleId corporateTitle jobTitle jobFunction locations { primary state country city __typename } status division skills jobType { code description __typename } externalSource { sourceId __typename } __typename } __typename } }"
                     }
                     """.formatted(config.getLimit());
 
@@ -75,36 +112,47 @@ public class GoldmanSachsPlatformHandler implements PlatformHandler {
         List<Job> jobs = new ArrayList<>();
 
         JsonNode root = objectMapper.readTree(json);
-        JsonNode hits = root.path("data").path("roles").path("hits");
+        JsonNode items = root.path("data").path("roleSearch").path("items");
+        int totalCount = root.path("data").path("roleSearch").path("totalCount").asInt(0);
 
-        log.info("Goldman Sachs items size: {}", hits.size());
+        log.info("Goldman Sachs total count: {}, items size: {}", totalCount, items.size());
 
-        for (JsonNode node : hits) {
+        for (JsonNode node : items) {
 
             String roleId = node.path("roleId").asText("");
             if (roleId.isEmpty()) continue;
 
-            // Extract numeric ID
+            // Extract numeric ID (first part before underscore)
             String id = roleId.contains("_")
                     ? roleId.split("_")[0] : roleId;
 
             String externalSourceId = node.path("externalSource")
                     .path("sourceId").asText("");
 
-            String title = node.path("title").asText();
-            String location = node.path("primaryLocation").asText();
+            String jobTitle = node.path("jobTitle").asText();
+
+            // Extract location from locations array (use primary location)
+            JsonNode locations = node.path("locations");
+            String location = "";
+            if (locations.isArray() && locations.size() > 0) {
+                JsonNode primaryLocation = locations.get(0);
+                String city = primaryLocation.path("city").asText("");
+                String state = primaryLocation.path("state").asText("");
+                String country = primaryLocation.path("country").asText("");
+                location = city + (state.isEmpty() ? "" : ", " + state) + (country.isEmpty() ? "" : ", " + country);
+            }
 
             Job job = new Job();
             job.setId("gs_" + id);
             job.setExternalId(externalSourceId);
             job.setCompany("Goldman Sachs");
-            job.setTitle(title);
+            job.setTitle(jobTitle);
             job.setLocation(location);
             job.setUrl(BASE_URL + "/roles/" + id);
             // Goldman API has no date field — rely on DB dedup
 
             jobs.add(job);
-            log.info("Goldman Sachs job: {} | {} ({})", title, location, id);
+            log.info("Goldman Sachs job: {} | {} ({})", jobTitle, location, id);
         }
 
         log.info("Goldman Sachs jobs fetched: {}", jobs.size());
@@ -118,9 +166,10 @@ public class GoldmanSachsPlatformHandler implements PlatformHandler {
                     {
                       "operationName": "GetRoleById",
                       "variables": {
-                        "externalSourceId": "%s"
+                        "externalSourceId": "%s",
+                        "externalSourceFetch": true
                       },
-                      "query": "query GetRoleById($externalSourceId: String) { role(externalSourceId: $externalSourceId) { title description qualifications } }"
+                      "query": "query GetRoleById($externalSourceId: String!, $externalSourceFetch: Boolean) { role(externalSourceId: $externalSourceId, externalSourceFetch: $externalSourceFetch) { roleId corporateTitle jobTitle jobFunction locations { primary state country city __typename } division descriptionHtml jobType { code description __typename } skillset compensation { minSalary maxSalary currency __typename } applyActive status externalSource { externalApplicationUrl applyInExternalSource sourceId secondarySourceId __typename } __typename } }"
                     }
                     """.formatted(externalId);
 
@@ -131,7 +180,7 @@ public class GoldmanSachsPlatformHandler implements PlatformHandler {
             headers.set("Referer", "https://higher.gs.com/roles");
 
             ResponseEntity<String> response = restTemplate.exchange(
-                    config.getListUrl(),
+                    config.getJdUrl(),
                     HttpMethod.POST,
                     new HttpEntity<>(query, headers),
                     String.class);
@@ -139,12 +188,9 @@ public class GoldmanSachsPlatformHandler implements PlatformHandler {
             JsonNode root = objectMapper.readTree(response.getBody());
             JsonNode role = root.path("data").path("role");
 
-            String description = role.path("description").asText("");
-            String qualifications = role.path("qualifications").asText("");
+            String descriptionHtml = role.path("descriptionHtml").asText("");
 
-            String combined = description + " " + qualifications;
-
-            String cleanJD = Jsoup.parse(combined).text()
+            String cleanJD = Jsoup.parse(descriptionHtml).text()
                     .replaceAll("\\s+", " ")
                     .trim();
 

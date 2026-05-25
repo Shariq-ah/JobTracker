@@ -14,5 +14,9 @@ public enum Platform {
     TALENTBREW,
 
     // Goldman Sachs custom GraphQL API
-    GOLDMAN_GRAPHQL
+    GOLDMAN_GRAPHQL,
+
+    // Workday platform — used by Visa
+    // Uses POST for list with filters in payload, relative dates converted to exact dates
+    WORKDAY
 }

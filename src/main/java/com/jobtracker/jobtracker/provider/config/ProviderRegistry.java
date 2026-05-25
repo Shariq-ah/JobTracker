@@ -15,16 +15,19 @@ public class ProviderRegistry {
     private final MicrosoftPlatformHandler microsoftHandler;
     private final BarclaysPlatformHandler barclaysHandler;
     private final GoldmanSachsPlatformHandler goldmanHandler;
+    private final WorkdayPlatformHandler workdayHandler;
 
     public ProviderRegistry(
             OracleHcmPlatformHandler oracleHcmHandler,
             MicrosoftPlatformHandler microsoftHandler,
             BarclaysPlatformHandler barclaysHandler,
-            GoldmanSachsPlatformHandler goldmanHandler) {
+            GoldmanSachsPlatformHandler goldmanHandler,
+            WorkdayPlatformHandler workdayHandler) {
         this.oracleHcmHandler = oracleHcmHandler;
         this.microsoftHandler = microsoftHandler;
         this.barclaysHandler = barclaysHandler;
         this.goldmanHandler = goldmanHandler;
+        this.workdayHandler = workdayHandler;
     }
 
     @Bean
@@ -34,7 +37,8 @@ public class ProviderRegistry {
                 jpmorgan(),
                 barclays(),
                 goldman(),
-                microsoft()
+                microsoft(),
+                visa()
         );
     }
 
@@ -47,7 +51,7 @@ public class ProviderRegistry {
                         .listUrl("https://egug.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions")
                         .jdUrl("https://egug.fa.us2.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails")
                         .siteNumber("CX_1")
-                        .keyword("Software Engineer")
+                        .keyword("Java")
                         .locationFilter("India")
                         .countryCode("IN")
                         .limit(25)
@@ -55,8 +59,11 @@ public class ProviderRegistry {
                         .jobUrlTemplate("https://egug.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/job/{id}")
                         .jdFetchDelayMs(300)
                         .jdFetchThreads(3)
+                        // New Oracle HCM specific filters
+                        .selectedLocationsFacet("300000000228786")
+                        .selectedFlexFieldsFacets("\"AttributeChar6|Technology\"")
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
     }
 
     // ─── JPMorgan Chase ─────────────────────────────────────────────
@@ -68,7 +75,7 @@ public class ProviderRegistry {
                         .listUrl("https://jpmc.fa.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitions")
                         .jdUrl("https://jpmc.fa.oraclecloud.com/hcmRestApi/resources/latest/recruitingCEJobRequisitionDetails")
                         .siteNumber("CX_1001")
-                        .keyword("Software Engineer")
+                        .keyword("Java")
                         .locationFilter("India")
                         .countryCode("IN")
                         .limit(25)
@@ -76,8 +83,11 @@ public class ProviderRegistry {
                         .jobUrlTemplate("https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/{id}")
                         .jdFetchDelayMs(300)
                         .jdFetchThreads(3)
+                        // New Oracle HCM specific filters
+                        .locationId("300000000289360")
+                        .selectedCategoriesFacet("300000086152753")
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
     }
 
     // ─── Barclays ───────────────────────────────────────────────────
@@ -91,7 +101,7 @@ public class ProviderRegistry {
                                 "&RecordsPerPage=16" +
                                 "&Distance=50" +
                                 "&RadiusUnitType=0" +
-                                "&Keywords=Software" +
+                                "&Keywords=Java" +
                                 "&Location=" +
                                 "&ShowRadius=False" +
                                 "&FacetFilters[0].ID=79683" +
@@ -125,7 +135,7 @@ public class ProviderRegistry {
                         .jdFetchDelayMs(300)
                         .jdFetchThreads(3)
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
     }
 
     // ─── Goldman Sachs ──────────────────────────────────────────────
@@ -142,7 +152,7 @@ public class ProviderRegistry {
                         .jdFetchDelayMs(300)
                         .jdFetchThreads(3)
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
     }
 
     // ─── Microsoft ──────────────────────────────────────────────────
@@ -153,12 +163,13 @@ public class ProviderRegistry {
                         .platform(Platform.MICROSOFT_CAREERS)
                         .listUrl("https://apply.careers.microsoft.com/api/pcsx/search" +
                                 "?domain=microsoft.com" +
-                                "&query=" +
+                                "&query=Java" +
                                 "&location=India" +
                                 "&start=0" +
                                 "&num_items=25" +
                                 "&sort_by=timestamp" +
                                 "&filter_include_remote=1" +
+                                "&filter_career_discipline=Software Engineering" +
                                 "&filter_profession=software engineering" +
                                 "&hl=en")
                         .jdUrl("https://apply.careers.microsoft.com/api/pcsx/position_details" +
@@ -172,6 +183,27 @@ public class ProviderRegistry {
                         .jdFetchDelayMs(3000)
                         .jdFetchThreads(1)
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
+    }
+
+    // ─── Visa ───────────────────────────────────────────────────────
+    private JobProvider visa() {
+        return new DynamicJobProvider(
+                JobProviderConfig.builder()
+                        .companyName("Visa")
+                        .platform(Platform.WORKDAY)
+                        .listUrl("https://visa.wd5.myworkdayjobs.com/wday/cxs/visa/Visa/jobs")
+                        .jdUrl("https://visa.wd5.myworkdayjobs.com/wday/cxs/visa/Visa")
+                        .keyword("Java")
+                        .limit(20)
+                        .lookbackDays(2)
+                        // Workday facet IDs for Visa
+                        .locationCountryId("c4f78be1a8f14da0ab49ce1162348a5e")  // India
+                        .timeTypeId("3d32d47be90110109faf15aa8b2200bf")        // Full-time
+                        .jobFamilyId("2745bc1368021016a991f65e710a3b1e")       // Software Engineering
+                        .jdFetchDelayMs(500)
+                        .jdFetchThreads(2)
+                        .build(),
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
     }
 }

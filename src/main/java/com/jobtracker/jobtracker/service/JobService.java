@@ -102,13 +102,18 @@ public class JobService {
 
                             jobRef.setDescription(jd);
 
-                            // Update postedAt with exact time if available (for Oracle HCM providers)
+                            // Update postedAt with exact time if available (for Oracle HCM and Workday providers)
                             if (provider instanceof DynamicJobProvider dynamicProvider) {
                                 var handler = dynamicProvider.getHandler();
                                 if (handler instanceof com.jobtracker.jobtracker.provider.platform.OracleHcmPlatformHandler oracleHandler) {
                                     var exactTime = oracleHandler.getAndClearCachedPostedTime(jobRef.getExternalId());
                                     if (exactTime != null) {
                                         jobRef.setPostedAt(exactTime);
+                                    }
+                                } else if (handler instanceof com.jobtracker.jobtracker.provider.platform.WorkdayPlatformHandler workdayHandler) {
+                                    var exactDate = workdayHandler.getAndClearCachedStartDate(jobRef.getExternalId());
+                                    if (exactDate != null) {
+                                        jobRef.setPostedAt(exactDate);
                                     }
                                 }
                             }
