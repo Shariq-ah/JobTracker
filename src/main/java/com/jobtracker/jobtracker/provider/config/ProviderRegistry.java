@@ -87,7 +87,7 @@ public class ProviderRegistry {
                         .companyName("Barclays")
                         .platform(Platform.TALENTBREW)
                         .listUrl("https://search.jobs.barclays/search-jobs/results" +
-                                "?ActiveFacetID=79683" +
+                                "?ActiveFacetID=1269750" +
                                 "&RecordsPerPage=16" +
                                 "&Distance=50" +
                                 "&RadiusUnitType=0" +
@@ -96,19 +96,19 @@ public class ProviderRegistry {
                                 "&ShowRadius=False" +
                                 "&FacetFilters[0].ID=79683" +
                                 "&FacetFilters[0].FacetType=1" +
-                                "&FacetFilters[0].Count=229" +
+                                "&FacetFilters[0].Count=272" +
                                 "&FacetFilters[0].Display=Development and Engineering" +
                                 "&FacetFilters[0].IsApplied=true" +
                                 "&FacetFilters[0].FieldName=" +
                                 "&FacetFilters[1].ID=44699" +
                                 "&FacetFilters[1].FacetType=1" +
-                                "&FacetFilters[1].Count=421" +
+                                "&FacetFilters[1].Count=537" +
                                 "&FacetFilters[1].Display=Technology" +
                                 "&FacetFilters[1].IsApplied=true" +
                                 "&FacetFilters[1].FieldName=" +
                                 "&FacetFilters[2].ID=1269750" +
                                 "&FacetFilters[2].FacetType=2" +
-                                "&FacetFilters[2].Count=421" +
+                                "&FacetFilters[2].Count=414" +
                                 "&FacetFilters[2].Display=India" +
                                 "&FacetFilters[2].IsApplied=true" +
                                 "&FacetFilters[2].FieldName=" +

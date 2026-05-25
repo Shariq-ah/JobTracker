@@ -48,7 +48,7 @@ public class DynamicJobProvider implements JobProvider {
     }
 
     // Returns right handler based on platform type
-    private PlatformHandler getHandler() {
+    public PlatformHandler getHandler() {
         Platform platform = config.getPlatform();
         return switch (platform) {
             case ORACLE_HCM -> oracleHcmHandler;

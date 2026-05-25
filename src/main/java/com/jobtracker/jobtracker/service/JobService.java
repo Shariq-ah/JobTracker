@@ -102,6 +102,17 @@ public class JobService {
 
                             jobRef.setDescription(jd);
 
+                            // Update postedAt with exact time if available (for Oracle HCM providers)
+                            if (provider instanceof DynamicJobProvider dynamicProvider) {
+                                var handler = dynamicProvider.getHandler();
+                                if (handler instanceof com.jobtracker.jobtracker.provider.platform.OracleHcmPlatformHandler oracleHandler) {
+                                    var exactTime = oracleHandler.getAndClearCachedPostedTime(jobRef.getExternalId());
+                                    if (exactTime != null) {
+                                        jobRef.setPostedAt(exactTime);
+                                    }
+                                }
+                            }
+
                             if (!experienceFilterService.isExperienceSuitable(jd, jobRef.getTitle())) {
                                 log.info("Skipping by experience: {}", jobRef.getTitle());
                                 return;

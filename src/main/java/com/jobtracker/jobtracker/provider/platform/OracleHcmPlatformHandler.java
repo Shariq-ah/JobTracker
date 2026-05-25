@@ -27,6 +27,10 @@ public class OracleHcmPlatformHandler implements PlatformHandler {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // Cache to store exact posted times fetched during JD retrieval
+    private final java.util.concurrent.ConcurrentHashMap<String, LocalDateTime> postedTimeCache =
+            new java.util.concurrent.ConcurrentHashMap<>();
+
     @Override
     public List<Job> fetchJobs(JobProviderConfig config) {
         try {
@@ -157,14 +161,19 @@ public class OracleHcmPlatformHandler implements PlatformHandler {
 
             JsonNode item = items.get(0);
 
-            // Update postedAt with exact time
+            // Extract and cache exact posted time while we have the response
             String postedAtStr = item.path("ExternalPostedStartDate").asText("");
             if (!postedAtStr.isEmpty()) {
-                LocalDateTime exactPostedAt = OffsetDateTime.parse(postedAtStr)
-                        .atZoneSameInstant(ZoneId.of("Asia/Kolkata"))
-                        .toLocalDateTime();
-                log.info("{} exact postedAt for {}: {}",
-                        config.getCompanyName(), externalId, exactPostedAt);
+                try {
+                    LocalDateTime exactPostedAt = OffsetDateTime.parse(postedAtStr)
+                            .atZoneSameInstant(ZoneId.of("Asia/Kolkata"))
+                            .toLocalDateTime();
+                    postedTimeCache.put(externalId, exactPostedAt);
+                    log.info("{} cached exact postedAt for {}: {}",
+                            config.getCompanyName(), externalId, exactPostedAt);
+                } catch (Exception e) {
+                    log.debug("Could not parse posted time: {}", postedAtStr);
+                }
             }
 
             // Combine all JD sections
@@ -187,5 +196,16 @@ public class OracleHcmPlatformHandler implements PlatformHandler {
                     config.getCompanyName(), externalId, e.getMessage());
             return "";
         }
+    }
+
+    /**
+     * Retrieves the exact posted time from cache (populated during fetchJobDescription).
+     * Returns null if not available. Cache entry is removed after retrieval.
+     *
+     * @param externalId The job's external ID
+     * @return Exact posted timestamp in IST, or null if not cached
+     */
+    public LocalDateTime getAndClearCachedPostedTime(String externalId) {
+        return postedTimeCache.remove(externalId);
     }
 }
