@@ -120,7 +120,9 @@ public class WorkdayPlatformHandler implements PlatformHandler {
             job.setCompany(config.getCompanyName());
             job.setTitle(title);
             job.setLocation(location);
-            job.setUrl(config.getJdUrl().replace("/wday/cxs", "") + externalPath);
+            String baseUrl = config.getJdUrl().split("/wday/cxs/")[0]; // https://visa.wd5.myworkdayjobs.com
+            String tenant = config.getJdUrl().split("/wday/cxs/visa/")[1]; // Visa
+            job.setUrl(baseUrl + "/" + tenant + externalPath);
             job.setPostedAt(postedAt); // Temporary relative date
 
             // Cache external path for JD fetching
