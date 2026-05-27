@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Documentation (Private - contains company-specific info) ###
+CLAUDE.md
+PROVIDERS.md
+docs/
