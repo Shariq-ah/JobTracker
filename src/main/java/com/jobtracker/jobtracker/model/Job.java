@@ -28,6 +28,40 @@ public class Job {
     private LocalDateTime postedAt;
     private String providerType;
 
+    // Structured experience requirements
+    private Integer minExperienceRequired;
+    private Integer maxExperienceRequired;
+
+    // Structured skills (extracted by Bedrock)
+    private List<String> requiredSkills;
+    private List<String> preferredSkills;
+    private List<String> niceToHaveSkills;
+
+    // Job level and type
+    private String jobLevel;              // "Junior", "SDE1", "SDE2", "Senior", "Staff", "Principal"
+    private WorkMode workMode;            // Enum: REMOTE, HYBRID, ONSITE, FLEXIBLE, NOT_SPECIFIED
+    private String employmentType;        // "Full-time", "Contract", "Intern"
+
+    // Salary information
+    private Long salaryMin;               // In INR (null if not mentioned)
+    private Long salaryMax;               // In INR (null if not mentioned)
+    private String salaryCurrency;        // "INR", "USD", "Not mentioned"
+
+    // Description fields
+    private String teamDescription;       // What team does (1-2 sentences)
+    private List<String> responsibilities; // Key responsibilities
+    private List<String> qualifications;   // Required qualifications
+
+    // AI-generated match analysis
+    private String applyRecommendation;   // "Strong Apply", "Apply", "Consider", "Skip"
+    private String scoreReason;           // Brief explanation of score
+    private Double aiMatchScore;          // Claude's calculated match score (0-100)
+
+    // Extraction metadata
+    private LocalDateTime extractedAt;
+    private Boolean extractionSuccess;
+    private String promptVersion;         // e.g., "2.0" for versioning prompts
+
     // Always store IST time
     public void setFirstSeenAt(LocalDateTime time) {
         this.firstSeenAt = time != null

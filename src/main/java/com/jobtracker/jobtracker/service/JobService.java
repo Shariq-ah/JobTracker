@@ -40,6 +40,9 @@ public class JobService {
     @Autowired
     private ExperienceFilterService experienceFilterService;
 
+    @Autowired
+    private JdExtractionService jdExtractionService;
+
     public JobService(JobRepository repository,
                       List<JobProvider> providers,
                       SkillMatcherService skillMatcher) {
@@ -118,12 +121,15 @@ public class JobService {
                                 }
                             }
 
-                            if (!experienceFilterService.isExperienceSuitable(jd, jobRef.getTitle())) {
+                            // Extract structured data from JD
+                            jdExtractionService.extractStructuredData(jobRef);
+
+                            if (!experienceFilterService.isExperienceSuitableStructured(jobRef)) {
                                 log.info("Skipping by experience: {}", jobRef.getTitle());
                                 return;
                             }
 
-                            Job matched = skillMatcher.match(jobRef);
+                            Job matched = skillMatcher.matchStructured(jobRef);
                             matched.setFirstSeenAt(LocalDateTime.now());
 
                             synchronized (repository) {
@@ -173,6 +179,17 @@ public class JobService {
                     ? "None"
                     : String.join(", ", job.getMissingSkills());
 
+            String experience = formatExperience(
+                job.getMinExperienceRequired(),
+                job.getMaxExperienceRequired()
+            );
+
+            String salary = formatSalary(
+                job.getSalaryMin(),
+                job.getSalaryMax(),
+                job.getSalaryCurrency()
+            );
+
             String summary = job.getDescription() == null ? "N/A"
                     : job.getDescription()
                     .substring(0, Math.min(200, job.getDescription().length()))
@@ -180,26 +197,49 @@ public class JobService {
                     .replaceAll("<", "&lt;")
                     .replaceAll(">", "&gt;");
 
+            // Build recommendation emoji
+            String recommendationEmoji = getRecommendationEmoji(job.getApplyRecommendation());
+            String recommendation = job.getApplyRecommendation() != null
+                ? recommendationEmoji + " " + job.getApplyRecommendation()
+                : "Not specified";
+
+            String scoreReason = job.getScoreReason() != null
+                ? job.getScoreReason()
+                : "Match calculated based on skills and experience";
+
             String message = """
                 🚀 <b>New Job Alert</b>
-                
+
                 🏢 <b>Company:</b> %s
                 💼 <b>Role:</b> %s
+                📊 <b>Level:</b> %s
                 📍 <b>Location:</b> %s
-                ⭐ <b>Match Score:</b> %s%%
-                
+                🏠 <b>Work Mode:</b> %s
+
+                ⭐ <b>Match Score:</b> %s%% %s
+                💡 <b>Why:</b> %s
+
+                📈 <b>Experience:</b> %s
+                💰 <b>Salary:</b> %s
+
                 ✅ <b>Matched Skills:</b> %s
                 ❌ <b>Missing Skills:</b> %s
-                
+
                 🔗 <a href="%s">Click to Apply</a>
-                
+
                 📄 <b>Summary:</b>
                 %s
                 """.formatted(
                     job.getCompany(),
                     job.getTitle(),
+                    job.getJobLevel() != null ? job.getJobLevel() : "Not specified",
                     job.getLocation(),
+                    job.getWorkMode() != null ? formatWorkMode(job.getWorkMode()) : "Not specified",
                     (int) job.getMatchScore(),
+                    recommendation,
+                    scoreReason,
+                    experience,
+                    salary,
                     matched,
                     missing,
                     job.getUrl(),
@@ -228,5 +268,63 @@ public class JobService {
         } catch (Exception e) {
             log.error("Telegram notification failed: {}", e.getMessage());
         }
+    }
+
+    private String formatExperience(Integer min, Integer max) {
+        if (min == null && max == null) {
+            return "Not specified";
+        }
+        if (min != null && max != null) {
+            return min + "-" + max + " years";
+        }
+        if (min != null) {
+            return min + "+ years";
+        }
+        return "Up to " + max + " years";
+    }
+
+    private String formatSalary(Long min, Long max, String currency) {
+        if (min == null && max == null) {
+            return "Not mentioned";
+        }
+
+        String curr = currency != null ? currency : "INR";
+
+        if (min != null && max != null) {
+            return formatAmount(min, curr) + " - " + formatAmount(max, curr);
+        }
+        if (min != null) {
+            return formatAmount(min, curr) + "+";
+        }
+        return "Up to " + formatAmount(max, curr);
+    }
+
+    private String formatAmount(long amount, String currency) {
+        if ("INR".equals(currency)) {
+            double lpa = amount / 100000.0;
+            return String.format("%.1f LPA", lpa);
+        }
+        return String.format("%s %,d", currency, amount);
+    }
+
+    private String formatWorkMode(com.jobtracker.jobtracker.model.WorkMode mode) {
+        return switch (mode) {
+            case REMOTE -> "🏠 Remote";
+            case HYBRID -> "🔄 Hybrid";
+            case ONSITE -> "🏢 On-site";
+            case FLEXIBLE -> "✨ Flexible";
+            case NOT_SPECIFIED -> "Not specified";
+        };
+    }
+
+    private String getRecommendationEmoji(String recommendation) {
+        if (recommendation == null) return "";
+        return switch (recommendation.toLowerCase()) {
+            case "strong apply" -> "🔥";
+            case "apply" -> "✅";
+            case "consider" -> "🤔";
+            case "skip" -> "⛔";
+            default -> "";
+        };
     }
 }

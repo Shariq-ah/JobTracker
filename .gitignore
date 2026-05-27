@@ -36,3 +36,9 @@ build/
 CLAUDE.md
 PROVIDERS.md
 docs/
+
+### Environment Variables (Security - contains secrets) ###
+.env
+.env.local
+.env.*.local
+*.env

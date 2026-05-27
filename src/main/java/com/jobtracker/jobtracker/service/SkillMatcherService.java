@@ -2,14 +2,19 @@ package com.jobtracker.jobtracker.service;
 
 import com.jobtracker.jobtracker.config.CandidateProfile;
 import com.jobtracker.jobtracker.model.Job;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 @Service
 public class SkillMatcherService {
+
+    private static final Logger log = LoggerFactory.getLogger(SkillMatcherService.class);
 
     @Autowired
     private CandidateProfile candidateProfile;
@@ -140,5 +145,117 @@ public class SkillMatcherService {
         job.setMissingSkills(missing);
 
         return job;
+    }
+
+    /**
+     * Match skills using AI score if available, structured data as secondary,
+     * otherwise fall back to fuzzy text matching.
+     */
+    public Job matchStructured(Job job) {
+        // Priority 1: If extraction succeeded and AI already calculated score
+        if (Boolean.TRUE.equals(job.getExtractionSuccess())
+                && job.getAiMatchScore() != null) {
+
+            log.info("Using AI-calculated score for {}: {}% ({})",
+                job.getTitle(),
+                job.getAiMatchScore().intValue(),
+                job.getApplyRecommendation());
+
+            // AI already populated matchScore, matchedSkills, missingSkills, scoreReason
+            return job;
+        }
+
+        // Priority 2: If extraction succeeded but no AI score, use structured skills
+        if (Boolean.TRUE.equals(job.getExtractionSuccess())
+                && job.getRequiredSkills() != null
+                && !job.getRequiredSkills().isEmpty()) {
+
+            log.info("AI score missing, using structured skill matching for: {}", job.getTitle());
+            return matchStructuredSkills(job);
+        }
+
+        // Priority 3: Fallback to fuzzy matching
+        log.info("Using fallback fuzzy matching for: {}", job.getTitle());
+        return match(job);
+    }
+
+    private Job matchStructuredSkills(Job job) {
+        List<String> candidateSkills = candidateProfile.getSkills();
+
+        // Combine all job skills (required + preferred + nice-to-have)
+        List<String> allJobSkills = new ArrayList<>();
+        if (job.getRequiredSkills() != null) {
+            allJobSkills.addAll(job.getRequiredSkills());
+        }
+        if (job.getPreferredSkills() != null) {
+            allJobSkills.addAll(job.getPreferredSkills());
+        }
+        if (job.getNiceToHaveSkills() != null) {
+            allJobSkills.addAll(job.getNiceToHaveSkills());
+        }
+
+        // Calculate match (exact skill name matching, case-insensitive)
+        List<String> matched = new ArrayList<>();
+        for (String candidateSkill : candidateSkills) {
+            boolean found = allJobSkills.stream()
+                .anyMatch(jobSkill -> jobSkill.equalsIgnoreCase(candidateSkill)
+                    || areSkillsSimilar(jobSkill, candidateSkill));
+            if (found) {
+                matched.add(candidateSkill);
+            }
+        }
+
+        List<String> missing = new ArrayList<>(candidateSkills);
+        missing.removeAll(matched);
+
+        // Calculate weighted score using tier system
+        int totalWeight = 0;
+        int matchedWeight = 0;
+
+        for (String skill : candidateSkills) {
+            int weight = getWeight(skill);
+            totalWeight += weight;
+            if (matched.contains(skill)) {
+                matchedWeight += weight;
+            }
+        }
+
+        int score = totalWeight == 0 ? 0 : (int) ((matchedWeight * 100.0) / totalWeight);
+
+        job.setMatchScore(score);
+        job.setMatchedSkills(matched);
+        job.setMissingSkills(missing);
+
+        log.info("Structured skill match for {}: {}% ({} matched, {} missing)",
+            job.getTitle(), score, matched.size(), missing.size());
+
+        return job;
+    }
+
+    /**
+     * Check if two skill names are similar (handles common variations).
+     */
+    private boolean areSkillsSimilar(String skill1, String skill2) {
+        String s1 = skill1.toLowerCase().trim();
+        String s2 = skill2.toLowerCase().trim();
+
+        // Exact match
+        if (s1.equals(s2)) return true;
+
+        // Common variations
+        if (s1.contains(s2) || s2.contains(s1)) return true;
+
+        // Specific mappings
+        if ((s1.equals("spring boot") || s1.equals("springboot"))
+                && (s2.equals("spring boot") || s2.equals("springboot"))) {
+            return true;
+        }
+
+        if ((s1.equals("rest api") || s1.equals("restful") || s1.equals("rest"))
+                && (s2.equals("rest api") || s2.equals("restful") || s2.equals("rest"))) {
+            return true;
+        }
+
+        return false;
     }
 }

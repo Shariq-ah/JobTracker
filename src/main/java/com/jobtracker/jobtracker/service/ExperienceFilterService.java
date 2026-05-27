@@ -1,5 +1,6 @@
 package com.jobtracker.jobtracker.service;
 
+import com.jobtracker.jobtracker.model.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -89,5 +90,36 @@ public class ExperienceFilterService {
         }
 
         return minFound == Integer.MAX_VALUE ? -1 : minFound;
+    }
+
+    /**
+     * Check experience suitability using structured data if available,
+     * otherwise fall back to regex-based extraction.
+     */
+    public boolean isExperienceSuitableStructured(Job job) {
+        // First, always check title (quick filter)
+        if (!isTitleSuitable(job.getTitle())) {
+            log.info("Skipping senior/management role: {}", job.getTitle());
+            return false;
+        }
+
+        // If extraction succeeded and we have structured min experience
+        if (Boolean.TRUE.equals(job.getExtractionSuccess())
+                && job.getMinExperienceRequired() != null) {
+            int minRequired = job.getMinExperienceRequired();
+
+            if (minRequired > MAX_ACCEPTABLE_MIN) {
+                log.info("Skipping job requiring {}+ years (structured): {}",
+                    minRequired, job.getTitle());
+                return false;
+            }
+
+            log.info("Experience filter passed (structured): {}+ years required, candidate has {}: {}",
+                    minRequired, CANDIDATE_EXPERIENCE, job.getTitle());
+            return true;
+        }
+
+        // Fallback to regex-based filtering
+        return isExperienceSuitable(job.getDescription(), job.getTitle());
     }
 }
