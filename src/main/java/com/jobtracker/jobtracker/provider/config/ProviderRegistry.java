@@ -180,7 +180,7 @@ public class ProviderRegistry {
                         .limit(25)
                         .lookbackDays(2)
                         .jobUrlTemplate("https://apply.careers.microsoft.com/careers/job/{id}")
-                        .jdFetchDelayMs(3000)
+                        .jdFetchDelayMs(5000)  // Increased from 3000ms due to strict rate limiting
                         .jdFetchThreads(1)
                         .build(),
                 oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);

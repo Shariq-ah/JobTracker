@@ -112,8 +112,6 @@ public class MicrosoftPlatformHandler implements PlatformHandler {
 
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                Thread.sleep(attempt * 2000L);
-
                 String url = config.getJdUrl()
                         .replace("{id}", externalId);
 
@@ -141,13 +139,21 @@ public class MicrosoftPlatformHandler implements PlatformHandler {
                 log.info("Microsoft JD length for {}: {}", externalId, cleanJD.length());
                 return cleanJD;
 
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return "";
             } catch (Exception e) {
                 log.warn("Attempt {}/{} failed for Microsoft JD {}: {}",
                         attempt, maxRetries, externalId, e.getMessage());
-                if (attempt == maxRetries) {
+
+                // If not last attempt, wait before retrying with exponential backoff
+                if (attempt < maxRetries) {
+                    try {
+                        long backoffMs = (long) Math.pow(2, attempt) * 3000; // 6s, 12s
+                        log.info("Waiting {}ms before retry...", backoffMs);
+                        Thread.sleep(backoffMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        return "";
+                    }
+                } else {
                     log.error("All retries failed for Microsoft JD: {}", externalId);
                     return "";
                 }
