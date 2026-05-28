@@ -86,85 +86,104 @@ public class JobService {
                     delayMs = 300;
                 }
 
-                ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+                // Check if JD fetching is needed (threadCount=0 means JD already in search response)
+                boolean needsJdFetch = threadCount > 0;
+
+                ExecutorService executor = needsJdFetch ? Executors.newFixedThreadPool(threadCount) : null;
                 List<Future<?>> futures = new ArrayList<>();
 
                 for (Job job : newJobs) {
                     final Job jobRef = job;
-                    Future<?> future = executor.submit(() -> {
+
+                    if (needsJdFetch) {
+                        Future<?> future = executor.submit(() -> {
+                            try {
+                                Thread.sleep(delayMs);
+
+                                String jd = provider.fetchJobDescription(jobRef.getExternalId());
+
+                                // Skip if JD is empty — rate limited or not available
+    //                            if (jd == null || jd.trim().isEmpty()) {
+    //                                log.info("Skipping job with empty JD: {}", jobRef.getTitle());
+    //                                return;
+    //                            }
+
+                                jobRef.setDescription(jd);
+
+                                processJob(provider, jobRef);
+
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                log.error("Thread interrupted for: {}", jobRef.getTitle());
+                            } catch (Exception e) {
+                                log.error("Error processing {}: {}", jobRef.getTitle(), e.getMessage());
+                            }
+                        });
+                        futures.add(future);
+                    } else {
+                        // Description already in job object (e.g., Amazon), process directly
                         try {
-                            Thread.sleep(delayMs);
-
-                            String jd = provider.fetchJobDescription(jobRef.getExternalId());
-
-                            // Skip if JD is empty — rate limited or not available
-//                            if (jd == null || jd.trim().isEmpty()) {
-//                                log.info("Skipping job with empty JD: {}", jobRef.getTitle());
-//                                return;
-//                            }
-
-                            jobRef.setDescription(jd);
-
-                            // Update postedAt with exact time if available (for Oracle HCM and Workday providers)
-                            if (provider instanceof DynamicJobProvider dynamicProvider) {
-                                var handler = dynamicProvider.getHandler();
-                                if (handler instanceof com.jobtracker.jobtracker.provider.platform.OracleHcmPlatformHandler oracleHandler) {
-                                    var exactTime = oracleHandler.getAndClearCachedPostedTime(jobRef.getExternalId());
-                                    if (exactTime != null) {
-                                        jobRef.setPostedAt(exactTime);
-                                    }
-                                } else if (handler instanceof com.jobtracker.jobtracker.provider.platform.WorkdayPlatformHandler workdayHandler) {
-                                    var exactDate = workdayHandler.getAndClearCachedStartDate(jobRef.getExternalId());
-                                    if (exactDate != null) {
-                                        jobRef.setPostedAt(exactDate);
-                                    }
-                                }
-                            }
-
-                            // Extract structured data from JD
-                            jdExtractionService.extractStructuredData(jobRef);
-
-                            if (!experienceFilterService.isExperienceSuitableStructured(jobRef)) {
-                                log.info("Skipping by experience: {}", jobRef.getTitle());
-                                return;
-                            }
-
-                            Job matched = skillMatcher.matchStructured(jobRef);
-                            matched.setFirstSeenAt(LocalDateTime.now());
-
-                            synchronized (repository) {
-                                if (!repository.existsById(matched.getId())) {
-                                    repository.save(matched);
-                                    log.info("NEW JOB: {} | Score: {}%",
-                                            matched.getTitle(), matched.getMatchScore());
-                                    sendTelegram(matched);
-                                }
-                            }
-
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            log.error("Thread interrupted for: {}", jobRef.getTitle());
+                            processJob(provider, jobRef);
                         } catch (Exception e) {
                             log.error("Error processing {}: {}", jobRef.getTitle(), e.getMessage());
                         }
-                    });
-
-                    futures.add(future);
+                    }
                 }
 
-                executor.shutdown();
-                boolean finished = executor.awaitTermination(2, TimeUnit.MINUTES);
-                if (!finished) {
-                    log.warn("Timeout waiting for {} JD fetches", provider.getCompanyName());
-                    executor.shutdownNow();
+                // Wait for all threads to complete (only if JD fetching was needed)
+                if (needsJdFetch) {
+                    executor.shutdown();
+                    boolean finished = executor.awaitTermination(2, TimeUnit.MINUTES);
+                    if (!finished) {
+                        log.warn("Timeout waiting for JD fetches from {}", provider.getCompanyName());
+                        executor.shutdownNow();
+                    }
                 }
 
             } catch (Exception e) {
-                log.error("Error fetching from {}: {}", provider.getCompanyName(), e.getMessage());
+                log.error("Error processing provider {}: {}", provider.getCompanyName(), e.getMessage());
             }
         }
 
-        log.info("Job check complete.");
+        log.info("Job check completed.");
+    }
+
+    private void processJob(JobProvider provider, Job jobRef) {
+        // Update postedAt with exact time if available (for Oracle HCM and Workday providers)
+        if (provider instanceof DynamicJobProvider dynamicProvider) {
+            var handler = dynamicProvider.getHandler();
+            if (handler instanceof com.jobtracker.jobtracker.provider.platform.OracleHcmPlatformHandler oracleHandler) {
+                var exactTime = oracleHandler.getAndClearCachedPostedTime(jobRef.getExternalId());
+                if (exactTime != null) {
+                    jobRef.setPostedAt(exactTime);
+                }
+            } else if (handler instanceof com.jobtracker.jobtracker.provider.platform.WorkdayPlatformHandler workdayHandler) {
+                var exactDate = workdayHandler.getAndClearCachedStartDate(jobRef.getExternalId());
+                if (exactDate != null) {
+                    jobRef.setPostedAt(exactDate);
+                }
+            }
+        }
+
+        // Extract structured data from JD
+        jdExtractionService.extractStructuredData(jobRef);
+
+        if (!experienceFilterService.isExperienceSuitableStructured(jobRef)) {
+            log.info("Skipping by experience: {}", jobRef.getTitle());
+            return;
+        }
+
+        Job matched = skillMatcher.matchStructured(jobRef);
+        matched.setFirstSeenAt(LocalDateTime.now());
+
+        synchronized (repository) {
+            if (!repository.existsById(matched.getId())) {
+                repository.save(matched);
+                log.info("NEW JOB: {} | Score: {}%",
+                        matched.getTitle(), matched.getMatchScore());
+                sendTelegram(matched);
+            }
+        }
     }
 
     public void sendTelegram(Job job) {

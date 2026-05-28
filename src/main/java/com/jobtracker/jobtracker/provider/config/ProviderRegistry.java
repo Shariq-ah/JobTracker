@@ -16,18 +16,21 @@ public class ProviderRegistry {
     private final BarclaysPlatformHandler barclaysHandler;
     private final GoldmanSachsPlatformHandler goldmanHandler;
     private final WorkdayPlatformHandler workdayHandler;
+    private final AmazonPlatformHandler amazonHandler;
 
     public ProviderRegistry(
             OracleHcmPlatformHandler oracleHcmHandler,
             MicrosoftPlatformHandler microsoftHandler,
             BarclaysPlatformHandler barclaysHandler,
             GoldmanSachsPlatformHandler goldmanHandler,
-            WorkdayPlatformHandler workdayHandler) {
+            WorkdayPlatformHandler workdayHandler,
+            AmazonPlatformHandler amazonHandler) {
         this.oracleHcmHandler = oracleHcmHandler;
         this.microsoftHandler = microsoftHandler;
         this.barclaysHandler = barclaysHandler;
         this.goldmanHandler = goldmanHandler;
         this.workdayHandler = workdayHandler;
+        this.amazonHandler = amazonHandler;
     }
 
     @Bean
@@ -38,7 +41,8 @@ public class ProviderRegistry {
                 barclays(),
                 goldman(),
                 microsoft(),
-                visa()
+                visa(),
+                amazon()
         );
     }
 
@@ -63,7 +67,7 @@ public class ProviderRegistry {
                         .selectedLocationsFacet("300000000228786")
                         .selectedFlexFieldsFacets("\"AttributeChar6|Technology\"")
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler, amazonHandler);
     }
 
     // ─── JPMorgan Chase ─────────────────────────────────────────────
@@ -87,7 +91,7 @@ public class ProviderRegistry {
                         .locationId("300000000289360")
                         .selectedCategoriesFacet("300000086152753")
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler, amazonHandler);
     }
 
     // ─── Barclays ───────────────────────────────────────────────────
@@ -135,7 +139,7 @@ public class ProviderRegistry {
                         .jdFetchDelayMs(300)
                         .jdFetchThreads(3)
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler, amazonHandler);
     }
 
     // ─── Goldman Sachs ──────────────────────────────────────────────
@@ -152,7 +156,7 @@ public class ProviderRegistry {
                         .jdFetchDelayMs(300)
                         .jdFetchThreads(3)
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler, amazonHandler);
     }
 
     // ─── Microsoft ──────────────────────────────────────────────────
@@ -183,7 +187,7 @@ public class ProviderRegistry {
                         .jdFetchDelayMs(5000)  // Increased from 3000ms due to strict rate limiting
                         .jdFetchThreads(1)
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler, amazonHandler);
     }
 
     // ─── Visa ───────────────────────────────────────────────────────
@@ -204,6 +208,49 @@ public class ProviderRegistry {
                         .jdFetchDelayMs(500)
                         .jdFetchThreads(2)
                         .build(),
-                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler);
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler, amazonHandler);
+    }
+
+    // ─── Amazon ─────────────────────────────────────────────────
+    private JobProvider amazon() {
+        return new DynamicJobProvider(
+                JobProviderConfig.builder()
+                        .companyName("Amazon")
+                        .platform(Platform.AMAZON_JOBS)
+                        .listUrl("https://www.amazon.jobs/en/search.json" +
+                                "?category%5B%5D=software-development" +
+                                "&schedule_type_id%5B%5D=Full-Time" +
+                                "&normalized_country_code%5B%5D=IND" +
+                                "&job_function_id%5B%5D=job_function_corporate_80rdb4" +  // Corporate/Software Dev function
+                                "&radius=24km" +
+                                "&industry_experience[]=one_to_three_years" +
+                                "&facets%5B%5D=normalized_country_code" +
+                                "&facets%5B%5D=normalized_state_name" +
+                                "&facets%5B%5D=normalized_city_name" +
+                                "&facets%5B%5D=location" +
+                                "&facets%5B%5D=business_category" +
+                                "&facets%5B%5D=category" +
+                                "&facets%5B%5D=schedule_type_id" +
+                                "&facets%5B%5D=employee_class" +
+                                "&facets%5B%5D=normalized_location" +
+                                "&facets%5B%5D=job_function_id" +
+                                "&facets%5B%5D=is_manager" +
+                                "&facets%5B%5D=is_intern" +
+                                "&offset=0" +
+                                "&result_limit=100" +  // Increased from 50
+                                "&sort=recent" +
+                                "&latitude=28.63141" +  // Delhi coordinates (central India)
+                                "&longitude=77.21676" +
+                                "&loc_query=India" +
+                                "&base_query=Java" +  // Search for Java keyword
+                                "&country=IND")
+                        .jdUrl("")  // Not needed - JD included in search response
+                        .limit(100)
+                        .lookbackDays(2)
+                        .jobUrlTemplate("{url}")  // URL comes directly from API (url_next_step field)
+                        .jdFetchDelayMs(0)  // No JD fetch needed!
+                        .jdFetchThreads(0)  // No JD fetch needed!
+                        .build(),
+                oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler, amazonHandler);
     }
 }

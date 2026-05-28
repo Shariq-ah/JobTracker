@@ -18,5 +18,10 @@ public enum Platform {
 
     // Workday platform — used by Visa
     // Uses POST for list with filters in payload, relative dates converted to exact dates
-    WORKDAY
+    WORKDAY,
+
+    // Amazon Jobs platform — custom API
+    // Includes full job description in search response (no separate JD fetch needed)
+    // Flexible date formats: absolute ("May 27, 2026") and relative ("1 day", "about 1 month")
+    AMAZON_JOBS
 }
