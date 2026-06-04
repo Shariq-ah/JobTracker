@@ -22,11 +22,16 @@ public class Job {
     private String description;
     private List<String> skills;
     private double matchScore;
+    private Double localMatchScore;
     private List<String> matchedSkills;
     private List<String> missingSkills;
     private LocalDateTime firstSeenAt;
     private LocalDateTime postedAt;
     private String providerType;
+    private Boolean skipped;
+    private String skipReason;
+    private LocalDateTime skippedAt;
+    private Boolean aiAnalyzed;
 
     // Structured experience requirements
     private Integer minExperienceRequired;
@@ -73,6 +78,14 @@ public class Job {
 
     public void setPostedAt(LocalDateTime time) {
         this.postedAt = time != null
+                ? time.atZone(ZoneId.of("UTC"))
+                .withZoneSameInstant(ZoneId.of("Asia/Kolkata"))
+                .toLocalDateTime()
+                : null;
+    }
+
+    public void setSkippedAt(LocalDateTime time) {
+        this.skippedAt = time != null
                 ? time.atZone(ZoneId.of("UTC"))
                 .withZoneSameInstant(ZoneId.of("Asia/Kolkata"))
                 .toLocalDateTime()

@@ -31,6 +31,12 @@ public class JobService {
     @Value("${telegram.chat.id}")
     private String chatId;
 
+    @Value("${ai.bedrock.enabled:true}")
+    private boolean bedrockEnabled;
+
+    @Value("${ai.bedrock.min-local-score:50}")
+    private int minLocalScoreForBedrock;
+
     private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
     private final JobRepository repository;
@@ -67,6 +73,7 @@ public class JobService {
                     if (!repository.existsById(job.getId())) {
                         if (!experienceFilterService.isTitleSuitable(job.getTitle())) {
                             log.info("Skipping by title (no JD fetch): {}", job.getTitle());
+                            saveSkippedJob(job, "TITLE_FILTER", false);
                         } else {
                             newJobs.add(job);
                         }
@@ -165,23 +172,77 @@ public class JobService {
             }
         }
 
-        // Extract structured data from JD
+        if (jobRef.getDescription() == null || jobRef.getDescription().trim().isEmpty()) {
+            log.info("Skipping job with empty JD: {}", jobRef.getTitle());
+            saveSkippedJob(jobRef, "EMPTY_DESCRIPTION", false);
+            return;
+        }
+
+        // Run cheap local filters before spending Bedrock tokens.
+        if (!experienceFilterService.isExperienceSuitable(jobRef.getDescription(), jobRef.getTitle())) {
+            log.info("Skipping by regex experience before Bedrock: {}", jobRef.getTitle());
+            saveSkippedJob(jobRef, "REGEX_EXPERIENCE_FILTER", false);
+            return;
+        }
+
+        Job locallyMatched = skillMatcher.match(jobRef);
+        locallyMatched.setLocalMatchScore(locallyMatched.getMatchScore());
+
+        if (!bedrockEnabled) {
+            locallyMatched.setAiAnalyzed(false);
+            saveMatchedJob(locallyMatched);
+            return;
+        }
+
+        if (locallyMatched.getMatchScore() < minLocalScoreForBedrock) {
+            log.info("Skipping by local score before Bedrock: {} | Score: {}% | Threshold: {}%",
+                    locallyMatched.getTitle(), locallyMatched.getMatchScore(), minLocalScoreForBedrock);
+            saveSkippedJob(locallyMatched, "LOW_LOCAL_SCORE", false);
+            return;
+        }
+
+        // Extract structured data only for jobs that passed cheap local checks.
         jdExtractionService.extractStructuredData(jobRef);
+        jobRef.setAiAnalyzed(true);
 
         if (!experienceFilterService.isExperienceSuitableStructured(jobRef)) {
             log.info("Skipping by experience: {}", jobRef.getTitle());
+            saveSkippedJob(jobRef, "STRUCTURED_EXPERIENCE_FILTER", true);
             return;
         }
 
         Job matched = skillMatcher.matchStructured(jobRef);
-        matched.setFirstSeenAt(LocalDateTime.now());
+        matched.setSkipped(false);
+        matched.setSkipReason(null);
+        matched.setAiAnalyzed(true);
+        saveMatchedJob(matched);
+    }
 
+    private void saveMatchedJob(Job matched) {
+        matched.setSkipped(false);
+        matched.setSkipReason(null);
+        matched.setFirstSeenAt(LocalDateTime.now());
         synchronized (repository) {
             if (!repository.existsById(matched.getId())) {
                 repository.save(matched);
                 log.info("NEW JOB: {} | Score: {}%",
                         matched.getTitle(), matched.getMatchScore());
                 sendTelegram(matched);
+            }
+        }
+    }
+
+    private void saveSkippedJob(Job job, String reason, boolean aiAnalyzed) {
+        job.setSkipped(true);
+        job.setSkipReason(reason);
+        job.setSkippedAt(LocalDateTime.now());
+        job.setAiAnalyzed(aiAnalyzed);
+        job.setFirstSeenAt(LocalDateTime.now());
+
+        synchronized (repository) {
+            if (!repository.existsById(job.getId())) {
+                repository.save(job);
+                log.info("SKIPPED JOB SAVED: {} | Reason: {}", job.getTitle(), reason);
             }
         }
     }

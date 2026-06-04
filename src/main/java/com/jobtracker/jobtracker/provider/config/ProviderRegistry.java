@@ -245,8 +245,8 @@ public class ProviderRegistry {
                                 "&base_query=Java" +  // Search for Java keyword
                                 "&country=IND")
                         .jdUrl("")  // Not needed - JD included in search response
-                        .limit(100)
-                        .lookbackDays(2)
+                        .limit(25)
+                        .lookbackDays(1)
                         .jobUrlTemplate("{url}")  // URL comes directly from API (url_next_step field)
                         .jdFetchDelayMs(0)  // No JD fetch needed!
                         .jdFetchThreads(0)  // No JD fetch needed!
