@@ -35,14 +35,14 @@ public class LaTeXCompilerService {
         try {
             log.debug("Compiling LaTeX via YtoTech API...");
 
-            // Build YtoTech API payload
+            // Build YtoTech API payload (matches working example format)
             Map<String, Object> payload = new HashMap<>();
             payload.put("compiler", "pdflatex");
 
             Map<String, Object> resource = new HashMap<>();
-            resource.put("main", true);
             resource.put("name", "main.tex");
             resource.put("content", latexSource);
+            // Note: Don't include "main": true - not needed
 
             payload.put("resources", List.of(resource));
 
@@ -72,10 +72,23 @@ public class LaTeXCompilerService {
             );
 
             if (httpResponse.statusCode() == 200 && httpResponse.body() != null) {
-                byte[] pdfBytes = httpResponse.body();
-                log.info("✅ LaTeX compiled via YtoTech API ({} bytes)", pdfBytes.length);
-                return pdfBytes;
+                // CRITICAL: Check Content-Type to verify it's actually a PDF
+                String contentType = httpResponse.headers().firstValue("Content-Type").orElse("");
+
+                if (contentType.contains("application/pdf")) {
+                    byte[] pdfBytes = httpResponse.body();
+                    log.info("✅ LaTeX compiled via YtoTech API ({} bytes)", pdfBytes.length);
+                    return pdfBytes;
+                } else {
+                    // API returned HTML error page instead of PDF
+                    String errorBody = new String(httpResponse.body());
+                    log.error("❌ API did not return PDF. Content-Type: {}", contentType);
+                    log.error("Server Response: {}", errorBody.length() > 500 ? errorBody.substring(0, 500) : errorBody);
+                    throw new RuntimeException("LaTeX API returned " + contentType + " instead of PDF");
+                }
             } else {
+                String errorBody = httpResponse.body() != null ? new String(httpResponse.body()) : "No body";
+                log.error("Server Logs: {}", errorBody.length() > 500 ? errorBody.substring(0, 500) : errorBody);
                 throw new RuntimeException("LaTeX API returned status: " + httpResponse.statusCode());
             }
 
