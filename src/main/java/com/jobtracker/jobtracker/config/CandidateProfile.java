@@ -11,7 +11,17 @@ import java.util.List;
 @ConfigurationProperties(prefix = "candidate")
 public class CandidateProfile {
 
+    // Basic info
+    private String name;
+    private String currentRole;
+    private String phone;
+    private String email;
+    private String location;
+    private String linkedin;
+    private String github;
+
+    // Skills and experience
     private List<String> skills;
-    private int experience;
+    private double experience;  // Changed to double for 3.6 years
     private List<String> roles;
 }

@@ -41,6 +41,9 @@ public class JdExtractionService {
     @Value("${aws.bedrock.temperature}")
     private double temperature;
 
+    @Value("${ai.dev.mock.enabled:false}")
+    private boolean devMockEnabled;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
@@ -68,8 +71,16 @@ public class JdExtractionService {
         String prompt = buildExtractionPrompt(truncatedJd, job.getTitle());
 
         try {
-            // Call Bedrock with retry logic
-            String jsonResponse = callBedrockWithRetry(prompt, 3);
+            String jsonResponse;
+
+            // DEV MODE: Use mock response to avoid API costs
+            if (devMockEnabled) {
+                log.info("🎭 DEV MODE: Using mock response (FREE - no API call)");
+                jsonResponse = getMockResponse(job.getTitle(), truncatedJd);
+            } else {
+                // PRODUCTION: Call real Bedrock API
+                jsonResponse = callBedrockWithRetry(prompt, 3);
+            }
 
             // Parse response
             parseAndPopulateJob(job, jsonResponse);
@@ -370,5 +381,51 @@ public class JdExtractionService {
         } catch (IllegalArgumentException e) {
             return WorkMode.NOT_SPECIFIED;
         }
+    }
+
+    /**
+     * Returns mock response for dev testing (zero cost).
+     * Simulates realistic Claude output with varying scores.
+     */
+    private String getMockResponse(String jobTitle, String jd) {
+        // Vary score based on job title hash for realistic testing
+        int baseScore = 60 + (Math.abs(jobTitle.hashCode()) % 30);  // 60-89%
+
+        boolean hasSpringBoot = jd.toLowerCase().contains("spring boot");
+        boolean hasKafka = jd.toLowerCase().contains("kafka");
+        boolean hasMicroservices = jd.toLowerCase().contains("microservice");
+
+        // Adjust score based on keywords
+        int finalScore = baseScore;
+        if (hasSpringBoot) finalScore += 5;
+        if (hasKafka) finalScore += 3;
+        if (hasMicroservices) finalScore += 2;
+        finalScore = Math.min(finalScore, 95);  // Cap at 95
+
+        String recommendation = finalScore >= 80 ? "Strong Apply" :
+                               finalScore >= 60 ? "Apply" :
+                               finalScore >= 40 ? "Consider" : "Skip";
+
+        return String.format("""
+            {
+              "matchScore": %d,
+              "recommendation": "%s",
+              "scoreReason": "Mock response for testing - strong Java/Spring Boot match with relevant experience",
+              "matchedSkills": ["Java", "Spring Boot", "REST API", "SQL"],
+              "missingSkills": ["Kafka", "AWS"],
+              "requiredSkills": ["Java", "Spring Boot", "Microservices"],
+              "preferredSkills": ["Kafka", "Docker", "AWS"],
+              "niceToHaveSkills": ["Kubernetes", "MongoDB"],
+              "minExperienceRequired": 3,
+              "maxExperienceRequired": 5,
+              "jobLevel": "SDE2",
+              "workMode": "HYBRID",
+              "salaryMinINR": 2000000,
+              "salaryMaxINR": 3500000,
+              "teamDescription": "Mock team description for testing",
+              "responsibilities": "Mock responsibilities",
+              "qualifications": "Mock qualifications"
+            }
+            """, finalScore, recommendation);
     }
 }

@@ -1,0 +1,151 @@
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\footskip}{4.1pt}
+
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+\titleformat{\section}{\vspace{-6pt}\scshape\raggedright\large}{}{0em}{}[\titlerule \vspace{-5pt}]
+\pdfgentounicode=1
+
+\newcommand{\resumeItem}[1]{\item\small{#1 \vspace{-3pt}}}
+\newcommand{\resumeSubheading}[4]{\vspace{-2pt}\item
+  \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+    \textbf{#1} & #2 \\
+    \textit{\small#3} & \textit{\small #4} \\
+  \end{tabular*}\vspace{-8pt}}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.15in]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+\begin{document}
+
+% HEADER
+\begin{center}
+  {\Huge \textbf{Sharique Ahmad}} \\ \vspace{1pt}
+  \href{tel:+917764023618}{+91-7764023618} $\vert$
+  \href{mailto:ahmadshariqueahmad@gmail.com}{ahmadshariqueahmad@gmail.com} $\vert$
+  Bengaluru, India $\vert$
+  \href{https://www.linkedin.com/in/sharique-ahmad-a1611217b}{LinkedIn} $\vert$
+  \href{https://github.com/sharique}{GitHub}
+\end{center}
+
+\begin{center}
+Software Engineer III | Java | Spring Boot | Microservices | Kafka | AWS | Distributed Systems | Payment \& Billing
+\end{center}
+
+% SKILLS
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+\small{\item{
+\textbf{Languages:} Java (8/11/17), SQL \\
+\textbf{Frameworks:} Spring Boot, Spring MVC, Spring Data JPA, Hibernate \\
+\textbf{Streaming \& Messaging:} Apache Kafka, Event-driven Architecture \\
+\textbf{Cloud \& DevOps:} AWS (EC2, S3, SNS/SQS, CloudWatch), Docker, Monitoring \\
+\textbf{Databases:} PostgreSQL, MySQL, MongoDB, Redis \\
+\textbf{Architecture:} Microservices, RESTful APIs, Distributed Systems, System Design
+}}
+\end{itemize}
+
+% EXPERIENCE
+\section{Experience}
+\resumeSubHeadingListStart
+
+\resumeSubheading
+{Software Engineer III}
+{May 2025 -- Present}
+{eBay (via ZeMoSo)}
+{Bengaluru, India}
+
+\resumeItemListStart
+
+\resumeItem{Architected distributed billing microservices handling 500K+ transactions daily with P99 latency of 120ms and zero duplicate-charge incidents by implementing idempotent request handlers and double-entry accounting ledger with ACID guarantees.}
+
+\resumeItem{Reduced transaction processing latency by 40\% (2.5s → 1.5s P99) by implementing Redis caching layer and optimizing Hibernate query N+1 patterns across payment settlement workflows.}
+
+\resumeItem{Designed event-driven Kafka pipeline processing 10K QPS with guaranteed delivery and automatic retry logic, eliminating manual reconciliation delays and reducing financial discrepancies by 95\%.}
+
+\resumeItem{Mentored 2 junior engineers on distributed systems patterns and transactional consistency; established design review cadence for 4 microservices, contributing to 1 SDE1 promotion.}
+
+\resumeItemListEnd
+
+\resumeSubheading
+{Software Engineer}
+{Sep 2022 -- Apr 2025}
+{HCLTech (Citi Payment Express)}
+{Pune, India}
+
+\resumeItemListStart
+
+\resumeItem{Designed and deployed RESTful APIs serving 100M+ users with 99.95\% uptime SLA and sub-200ms P95 latency, supporting 50K QPS across 8 microservices with API versioning and OpenAPI documentation.}
+
+\resumeItem{Architected Kafka-based event-driven architecture processing 500M+ transactions monthly with idempotent handling, reducing failed payment retries by 35\% and eliminating customer-facing transaction failures.}
+
+\resumeItem{Optimized PostgreSQL performance through index optimization and connection pooling, reducing transaction latency by 35\% (3.2s → 2.1s P95) across payment workflows.}
+
+\resumeItem{Owned distributed ledger service storing 10M+ financial records with eventual consistency guarantees; led code reviews and mentored 3 junior developers with 2 promoted to senior levels.}
+
+\resumeItem{On-call rotation owner for payment processing service; diagnosed and resolved 3 critical production incidents (rate limiting spike, connection pool exhaustion, JPA deadlock), reducing MTTR by 40\% through postmortem-driven preventive monitoring.}
+
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+% PROJECTS
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeSubheading
+{JobTracker - Automated Job Aggregation System}
+{2025}
+{Personal Project $\vert$ \href{https://github.com/sharique/jobtracker}{GitHub}}
+{}
+
+\resumeItemListStart
+
+\resumeItem{Architected distributed job aggregation system in Java Spring Boot integrating 10+ company career APIs with platform-agnostic handlers, enabling new providers with minimal code duplication.}
+
+\resumeItem{Implemented weighted skill matching engine with NLP-based JD parsing achieving 60--90\% accuracy; integrated Claude AI API for semantic analysis and automated ATS-optimized resume tailoring per job.}
+
+\resumeItem{Engineered real-time Telegram notification system delivering job alerts within 15 minutes of posting with match scores; deployed on Render with MongoDB Atlas and CI/CD pipeline handling concurrent requests with rate limiting.}
+
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+% CERTIFICATIONS
+\section{Certifications}
+AWS Certified Developer – Associate (2026) $\vert$ Microsoft GitHub Copilot Certification (2026)
+
+% EDUCATION
+\section{Education}
+\resumeSubHeadingListStart
+\resumeSubheading
+{B.Tech in Computer Science and Engineering}
+{2018 -- 2022}
+{I.K. Gujral Punjab Technical University}
+{Punjab, India}
+\resumeSubHeadingListEnd
+\end{document}

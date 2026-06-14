@@ -49,6 +49,12 @@ public class JobService {
     @Autowired
     private JdExtractionService jdExtractionService;
 
+    @Autowired
+    private ResumeTailoringService resumeTailoringService;
+
+    @Autowired
+    private TelegramService telegramService;
+
     public JobService(JobRepository repository,
                       List<JobProvider> providers,
                       SkillMatcherService skillMatcher) {
@@ -222,12 +228,48 @@ public class JobService {
         matched.setSkipped(false);
         matched.setSkipReason(null);
         matched.setFirstSeenAt(LocalDateTime.now());
+
+        boolean isNewJob = false;
+
+        // CRITICAL: Keep synchronized block MINIMAL - only DB operations
         synchronized (repository) {
             if (!repository.existsById(matched.getId())) {
                 repository.save(matched);
+                isNewJob = true;
                 log.info("NEW JOB: {} | Score: {}%",
                         matched.getTitle(), matched.getMatchScore());
-                sendTelegram(matched);
+            }
+        }
+
+        // Process notifications and resume OUTSIDE the lock
+        if (isNewJob) {
+            sendTelegram(matched);
+
+            // Phase 3: Resume handling based on AI score
+            double aiScore = matched.getAiMatchScore() != null ? matched.getAiMatchScore() : matched.getMatchScore();
+
+            if (aiScore >= 50.0) {
+                // High score: Try AI tailoring (costs $0.004)
+                try {
+                    log.info("Generating AI-tailored resume for: {} (AI Score: {}%)",
+                            matched.getTitle(), aiScore);
+
+                    var tailoredResume = resumeTailoringService.tailorResume(matched);
+                    telegramService.sendTailoredResume(matched, tailoredResume);
+
+                    log.info("✅ Tailored resume sent | ATS Score: {} | Cost: $0.004",
+                            tailoredResume.getAtsScore());
+                } catch (Exception e) {
+                    log.error("❌ Tailoring failed: {}", e.getMessage());
+
+                    // Fallback: Send general resume (no extra cost)
+                    telegramService.sendGeneralResume(matched, "AI tailoring failed - using general resume");
+                    log.info("✅ General resume sent as fallback | Cost: $0");
+                }
+            } else {
+                // Low score: Skip AI, send general resume (no cost)
+                log.info("Skipping AI tailoring (score {}% < 50%), sending general resume | Cost: $0", aiScore);
+                telegramService.sendGeneralResume(matched, "Score below 50% - no AI tailoring needed");
             }
         }
     }
@@ -287,6 +329,15 @@ public class JobService {
                 ? job.getScoreReason()
                 : "Match calculated based on skills and experience";
 
+            // Check resume type based on score
+            double aiScore = job.getAiMatchScore() != null ? job.getAiMatchScore() : job.getMatchScore();
+            String resumeNotice;
+            if (aiScore >= 50.0) {
+                resumeNotice = "\n\n📄 <i>AI-tailored resume generating... Will arrive in ~5-8 seconds ⬇️</i>";
+            } else {
+                resumeNotice = "\n\n📄 <i>General resume will arrive shortly (no AI cost) ⬇️</i>";
+            }
+
             String message = """
                 🚀 <b>New Job Alert</b>
 
@@ -308,7 +359,7 @@ public class JobService {
                 🔗 <a href="%s">Click to Apply</a>
 
                 📄 <b>Summary:</b>
-                %s
+                %s%s
                 """.formatted(
                     job.getCompany(),
                     job.getTitle(),
@@ -323,7 +374,8 @@ public class JobService {
                     matched,
                     missing,
                     job.getUrl(),
-                    summary
+                    summary,
+                    resumeNotice
             );
 
             String url = "https://api.telegram.org/bot" + token + "/sendMessage";
