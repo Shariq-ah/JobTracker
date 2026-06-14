@@ -257,22 +257,74 @@ public class ResumeTailoringService {
         if (!titleLine.isEmpty()) {
             tailoredLatex = tailoredLatex.replaceFirst(
                     "Software Engineer III \\| Java \\| Spring Boot \\| Microservices \\| Kafka \\| AWS \\| Distributed Systems \\| Payment & Billing",
-                    titleLine
+                    escapeLatex(titleLine)
             );
         }
 
         // Replace experience bullets (if provided)
         JsonNode experienceBullets = tailoredContent.path("experienceBullets");
         if (experienceBullets.isArray() && experienceBullets.size() > 0) {
-            // Replace first 4 bullets with tailored versions
+            // Find and replace each \resumeItem{...} block with tailored version
+            // Use String manipulation instead of regex to avoid escaping issues
+            String marker = "\\resumeItem{";
+
             for (int i = 0; i < Math.min(4, experienceBullets.size()); i++) {
-                String originalPattern = "\\\\resumeItem\\{.*?\\}";
-                String replacement = "\\\\resumeItem{" + experienceBullets.get(i).asText() + "}";
-                tailoredLatex = tailoredLatex.replaceFirst(originalPattern, replacement);
+                int startIndex = tailoredLatex.indexOf(marker);
+                if (startIndex == -1) break;  // No more \resumeItem to replace
+
+                // Find matching closing brace
+                int openBraces = 1;
+                int endIndex = startIndex + marker.length();
+                while (endIndex < tailoredLatex.length() && openBraces > 0) {
+                    char c = tailoredLatex.charAt(endIndex);
+                    if (c == '{' && (endIndex == 0 || tailoredLatex.charAt(endIndex - 1) != '\\')) {
+                        openBraces++;
+                    } else if (c == '}' && (endIndex == 0 || tailoredLatex.charAt(endIndex - 1) != '\\')) {
+                        openBraces--;
+                    }
+                    endIndex++;
+                }
+
+                // Replace the old content with new tailored content
+                String escapedBullet = escapeLatex(experienceBullets.get(i).asText());
+                String replacement = marker + escapedBullet + "}";
+                tailoredLatex = tailoredLatex.substring(0, startIndex) + replacement + tailoredLatex.substring(endIndex);
             }
         }
 
         return tailoredLatex;
+    }
+
+    /**
+     * Escapes special LaTeX characters to prevent compilation errors.
+     * Characters like %, #, &, _, etc. need to be escaped in LaTeX.
+     *
+     * IMPORTANT: Process in specific order to avoid double-escaping:
+     * 1. Backslash first (but unlikely in resume text)
+     * 2. Braces next (important for structure)
+     * 3. Other special chars last
+     */
+    private String escapeLatex(String text) {
+        if (text == null) return "";
+
+        return text
+            // Backslash must be first, but wrap in {} to avoid issues
+            .replace("\\", "\\textbackslash ")
+            // Braces next (structural)
+            .replace("{", "\\{")
+            .replace("}", "\\}")
+            // Common special characters
+            .replace("%", "\\%")
+            .replace("$", "\\$")
+            .replace("&", "\\&")
+            .replace("#", "\\#")
+            .replace("_", "\\_")
+            // Less common (use commands)
+            .replace("~", "\\textasciitilde ")
+            .replace("^", "\\textasciicircum ")
+            .replace("<", "\\textless ")
+            .replace(">", "\\textgreater ")
+            .replace("|", "\\textbar ");
     }
 
     /**
