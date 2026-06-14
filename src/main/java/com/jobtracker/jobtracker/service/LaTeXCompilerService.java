@@ -9,13 +9,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Service for compiling LaTeX source code to PDF using YtoTech LaTeX API.
- * Free cloud-based compilation - no local pdflatex installation needed.
- * Perfect for cloud deployments (Render, Heroku, etc.)
+ * Service for compiling LaTeX source code to PDF.
+ * Priority: Local pdflatex (faster, more reliable) → YtoTech API (fallback)
  */
 @Service
 @Slf4j
 public class LaTeXCompilerService {
+
+    private final LocalLaTeXCompilerService localCompiler;
 
     @Value("${latex.online.api.url:https://ytotech.com}")
     private String latexApiUrl;
@@ -23,15 +24,40 @@ public class LaTeXCompilerService {
     @Value("${latex.compilation.timeout.seconds:30}")
     private int timeoutSeconds;
 
+    @Value("${latex.local.enabled:true}")
+    private boolean localEnabled;
+
+    public LaTeXCompilerService(LocalLaTeXCompilerService localCompiler) {
+        this.localCompiler = localCompiler;
+    }
+
     /**
-     * Compiles LaTeX source code to PDF using YtoTech LaTeX API.
-     * No local pdflatex installation required - perfect for cloud deployments.
+     * Compiles LaTeX source code to PDF.
+     * Tries local pdflatex first (faster), falls back to YtoTech API if unavailable.
      *
      * @param latexSource Complete LaTeX document source
      * @return PDF file as byte array
      * @throws RuntimeException if compilation fails
      */
     public byte[] compileToPDF(String latexSource) {
+        // Try local compilation first (faster and more reliable)
+        if (localEnabled && localCompiler.isPdflatexAvailable()) {
+            try {
+                log.debug("Compiling LaTeX locally...");
+                return localCompiler.compileToPDF(latexSource);
+            } catch (Exception e) {
+                log.warn("Local LaTeX compilation failed, falling back to API: {}", e.getMessage());
+            }
+        }
+
+        // Fallback to YtoTech API
+        return compileToPDFViaAPI(latexSource);
+    }
+
+    /**
+     * Compiles LaTeX using YtoTech online API (fallback method).
+     */
+    private byte[] compileToPDFViaAPI(String latexSource) {
         try {
             log.debug("Compiling LaTeX via YtoTech API...");
 
