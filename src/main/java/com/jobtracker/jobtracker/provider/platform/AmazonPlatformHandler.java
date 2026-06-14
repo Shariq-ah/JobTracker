@@ -129,6 +129,7 @@ public class AmazonPlatformHandler implements PlatformHandler {
     /**
      * Parse Amazon's flexible date formats:
      * - "May 27, 2026" (full date)
+     * - "May  8, 2026" (full date with double space for single-digit days)
      * - "1 day" (relative)
      * - "14 minutes" (relative)
      * - "about 1 month" (relative)
@@ -140,9 +141,12 @@ public class AmazonPlatformHandler implements PlatformHandler {
         }
 
         try {
+            // Normalize whitespace (Amazon sometimes uses double spaces for alignment: "May  8, 2026")
+            String normalizedDate = dateStr.trim().replaceAll("\\s+", " ");
+
             // Try parsing absolute date first: "May 27, 2026" or "April 23, 2026"
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM d, yyyy", Locale.ENGLISH);
-            LocalDate date = LocalDate.parse(dateStr, formatter);
+            LocalDate date = LocalDate.parse(normalizedDate, formatter);
             return date.atStartOfDay(ZoneId.of("Asia/Kolkata")).toLocalDateTime();
         } catch (DateTimeParseException e) {
             // Not an absolute date, try relative patterns
