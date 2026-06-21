@@ -63,8 +63,7 @@ Software Engineer III | Java | Spring Boot | Microservices | Kafka | AWS | Distr
 \textbf{Languages:} Java (8/11/17), SQL \\
 \textbf{Frameworks:} Spring Boot, Spring MVC, Spring Data JPA, Hibernate \\
 \textbf{Streaming \& Messaging:} Apache Kafka, Event-driven Architecture \\
-\textbf{Cloud \& DevOps:} AWS (EC2, S3, Lambda, ECS, CloudWatch, SNS/SQS), Docker, Kubernetes, Jenkins, CI/CD \\
-\textbf{Monitoring \& Observability:} Prometheus, Grafana, ELK Stack, CloudWatch, Distributed Tracing \\
+\textbf{Cloud \& DevOps:} AWS (EC2, S3, SNS/SQS, CloudWatch), Docker, Monitoring \\
 \textbf{Databases:} PostgreSQL, MySQL, MongoDB, Redis \\
 \textbf{Architecture:} Microservices, RESTful APIs, Distributed Systems, System Design
 }}
@@ -82,15 +81,13 @@ Software Engineer III | Java | Spring Boot | Microservices | Kafka | AWS | Distr
 
 \resumeItemListStart
 
-\resumeItem{Architected distributed billing microservices handling 500K+ transactions daily with P99 latency of 120ms and zero duplicate-charge incidents via idempotent handlers and double-entry accounting with ACID guarantees.}
+\resumeItem{Architected distributed billing microservices handling 500K+ transactions daily with P99 latency of 120ms and zero duplicate-charge incidents by implementing idempotent request handlers and double-entry accounting ledger with ACID guarantees.}
 
-\resumeItem{Reduced transaction latency by 40\% (2.5s → 1.5s P99) via Redis caching and Hibernate N+1 query optimization.}
+\resumeItem{Reduced transaction processing latency by 40\% (2.5s → 1.5s P99) by implementing Redis caching layer and optimizing Hibernate query N+1 patterns across payment settlement workflows.}
 
-\resumeItem{Designed Kafka event-driven pipeline processing 10K QPS with guaranteed delivery, reducing financial discrepancies by 95\%.}
+\resumeItem{Designed event-driven Kafka pipeline processing 10K QPS with guaranteed delivery and automatic retry logic, eliminating manual reconciliation delays and reducing financial discrepancies by 95\%.}
 
-\resumeItem{Containerized 8 microservices via Docker/Kubernetes with Helm charts; implemented Prometheus/Grafana observability monitoring 50+ KPIs, achieving 99.9\% uptime and reducing deployment time from 2h to 15min via Jenkins CI/CD.}
-
-\resumeItem{Mentored 2 junior engineers on distributed systems patterns, contributing to 1 SDE1 promotion.}
+\resumeItem{Mentored 2 junior engineers on distributed systems patterns and transactional consistency; established design review cadence for 4 microservices, contributing to 1 SDE1 promotion.}
 
 \resumeItemListEnd
 
@@ -102,15 +99,15 @@ Software Engineer III | Java | Spring Boot | Microservices | Kafka | AWS | Distr
 
 \resumeItemListStart
 
-\resumeItem{Designed RESTful APIs serving 100M+ users with 99.95\% uptime and sub-200ms P95 latency, supporting 50K QPS across 8 microservices.}
+\resumeItem{Designed and deployed RESTful APIs serving 100M+ users with 99.95\% uptime SLA and sub-200ms P95 latency, supporting 50K QPS across 8 microservices with API versioning and OpenAPI documentation.}
 
-\resumeItem{Architected Kafka event-driven architecture processing 500M+ transactions monthly, reducing failed retries by 35\% via idempotent handling.}
+\resumeItem{Architected Kafka-based event-driven architecture processing 500M+ transactions monthly with idempotent handling, reducing failed payment retries by 35\% and eliminating customer-facing transaction failures.}
 
-\resumeItem{Built CI/CD pipelines using Jenkins and GitLab CI with Docker containerization and blue-green deployments to AWS ECS, enabling 20+ zero-downtime production releases monthly; configured AWS infrastructure (Lambda, ALB, auto-scaling, CloudWatch) reducing costs by 25\%.}
+\resumeItem{Optimized PostgreSQL performance through index optimization and connection pooling, reducing transaction latency by 35\% (3.2s → 2.1s P95) across payment workflows.}
 
-\resumeItem{Optimized PostgreSQL performance through index optimization, reducing transaction latency by 35\% (3.2s → 2.1s P95); owned distributed ledger service with 10M+ records.}
+\resumeItem{Owned distributed ledger service storing 10M+ financial records with eventual consistency guarantees; led code reviews and mentored 3 junior developers with 2 promoted to senior levels.}
 
-\resumeItem{On-call rotation owner; resolved 3 critical incidents (rate limiting, connection pool exhaustion, deadlock), reducing MTTR by 40\% via Grafana/PagerDuty monitoring and postmortem analysis.}
+\resumeItem{On-call rotation owner for payment processing service; diagnosed and resolved 3 critical production incidents (rate limiting spike, connection pool exhaustion, JPA deadlock), reducing MTTR by 40\% through postmortem-driven preventive monitoring.}
 
 \resumeItemListEnd
 
@@ -128,9 +125,11 @@ Software Engineer III | Java | Spring Boot | Microservices | Kafka | AWS | Distr
 
 \resumeItemListStart
 
-\resumeItem{Architected distributed job aggregation system integrating 10+ company APIs with platform-agnostic handlers; implemented Claude AI-powered skill matching and automated ATS-optimized resume tailoring achieving 60--90\% accuracy.}
+\resumeItem{Architected distributed job aggregation system in Java Spring Boot integrating 10+ company career APIs with platform-agnostic handlers, enabling new providers with minimal code duplication.}
 
-\resumeItem{Engineered real-time Telegram notification system delivering alerts within 15 minutes; deployed on Render with MongoDB Atlas, CI/CD pipeline, and rate-limited concurrent request handling.}
+\resumeItem{Implemented weighted skill matching engine with NLP-based JD parsing achieving 60--90\% accuracy; integrated Claude AI API for semantic analysis and automated ATS-optimized resume tailoring per job.}
+
+\resumeItem{Engineered real-time Telegram notification system delivering job alerts within 15 minutes of posting with match scores; deployed on Render with MongoDB Atlas and CI/CD pipeline handling concurrent requests with rate limiting.}
 
 \resumeItemListEnd
 
