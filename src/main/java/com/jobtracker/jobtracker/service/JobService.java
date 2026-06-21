@@ -39,6 +39,9 @@ public class JobService {
 
     private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
+    // Lock for synchronizing resume tailoring across threads
+    private static final Object RESUME_TAILORING_LOCK = new Object();
+
     private final JobRepository repository;
     private final List<JobProvider> providers;
     private final SkillMatcherService skillMatcher;
@@ -104,6 +107,7 @@ public class JobService {
 
                 ExecutorService executor = needsJdFetch ? Executors.newFixedThreadPool(threadCount) : null;
                 List<Future<?>> futures = new ArrayList<>();
+                List<Job> matchedJobs = new ArrayList<>();  // Collect matched jobs for resume tailoring
 
                 for (Job job : newJobs) {
                     final Job jobRef = job;
@@ -114,16 +118,14 @@ public class JobService {
                                 Thread.sleep(delayMs);
 
                                 String jd = provider.fetchJobDescription(jobRef.getExternalId());
-
-                                // Skip if JD is empty — rate limited or not available
-    //                            if (jd == null || jd.trim().isEmpty()) {
-    //                                log.info("Skipping job with empty JD: {}", jobRef.getTitle());
-    //                                return;
-    //                            }
-
                                 jobRef.setDescription(jd);
 
-                                processJob(provider, jobRef);
+                                Job matched = processJob(provider, jobRef);
+                                if (matched != null) {
+                                    synchronized (matchedJobs) {
+                                        matchedJobs.add(matched);
+                                    }
+                                }
 
                             } catch (InterruptedException e) {
                                 Thread.currentThread().interrupt();
@@ -136,14 +138,17 @@ public class JobService {
                     } else {
                         // Description already in job object (e.g., Amazon), process directly
                         try {
-                            processJob(provider, jobRef);
+                            Job matched = processJob(provider, jobRef);
+                            if (matched != null) {
+                                matchedJobs.add(matched);
+                            }
                         } catch (Exception e) {
                             log.error("Error processing {}: {}", jobRef.getTitle(), e.getMessage());
                         }
                     }
                 }
 
-                // Wait for all threads to complete (only if JD fetching was needed)
+                // Wait for all JD fetching threads to complete
                 if (needsJdFetch) {
                     executor.shutdown();
                     boolean finished = executor.awaitTermination(2, TimeUnit.MINUTES);
@@ -151,6 +156,28 @@ public class JobService {
                         log.warn("Timeout waiting for JD fetches from {}", provider.getCompanyName());
                         executor.shutdownNow();
                     }
+                }
+
+                // CRITICAL: Process resume tailoring AFTER all JD threads complete
+                // This prevents thread interruption during long-running tailoring operations
+                if (!matchedJobs.isEmpty()) {
+                    log.info("Processing resume tailoring for {} matched jobs from {}",
+                            matchedJobs.size(), provider.getCompanyName());
+
+                    // Synchronized to ensure one resume at a time (prevents AWS rate limits)
+                    synchronized (RESUME_TAILORING_LOCK) {
+                        for (Job matched : matchedJobs) {
+                            try {
+                                processResumeTailoring(matched);
+                            } catch (Exception e) {
+                                log.error("Error in resume tailoring for {}: {}",
+                                        matched.getTitle(), e.getMessage());
+                            }
+                        }
+                    }
+
+                    log.info("Resume tailoring completed for {} jobs from {}",
+                            matchedJobs.size(), provider.getCompanyName());
                 }
 
             } catch (Exception e) {
@@ -161,7 +188,11 @@ public class JobService {
         log.info("Job check completed.");
     }
 
-    private void processJob(JobProvider provider, Job jobRef) {
+    /**
+     * Process a job: extract data, filter, match skills, and save to DB.
+     * Returns the job if it was matched and saved, null otherwise.
+     */
+    private Job processJob(JobProvider provider, Job jobRef) {
         // Update postedAt with exact time if available (for Oracle HCM and Workday providers)
         if (provider instanceof DynamicJobProvider dynamicProvider) {
             var handler = dynamicProvider.getHandler();
@@ -181,14 +212,14 @@ public class JobService {
         if (jobRef.getDescription() == null || jobRef.getDescription().trim().isEmpty()) {
             log.info("Skipping job with empty JD: {}", jobRef.getTitle());
             saveSkippedJob(jobRef, "EMPTY_DESCRIPTION", false);
-            return;
+            return null;
         }
 
         // Run cheap local filters before spending Bedrock tokens.
         if (!experienceFilterService.isExperienceSuitable(jobRef.getDescription(), jobRef.getTitle())) {
             log.info("Skipping by regex experience before Bedrock: {}", jobRef.getTitle());
             saveSkippedJob(jobRef, "REGEX_EXPERIENCE_FILTER", false);
-            return;
+            return null;
         }
 
         Job locallyMatched = skillMatcher.match(jobRef);
@@ -197,14 +228,14 @@ public class JobService {
         if (!bedrockEnabled) {
             locallyMatched.setAiAnalyzed(false);
             saveMatchedJob(locallyMatched);
-            return;
+            return locallyMatched;  // Return matched job
         }
 
         if (locallyMatched.getMatchScore() < minLocalScoreForBedrock) {
             log.info("Skipping by local score before Bedrock: {} | Score: {}% | Threshold: {}%",
                     locallyMatched.getTitle(), locallyMatched.getMatchScore(), minLocalScoreForBedrock);
             saveSkippedJob(locallyMatched, "LOW_LOCAL_SCORE", false);
-            return;
+            return null;
         }
 
         // Extract structured data only for jobs that passed cheap local checks.
@@ -214,7 +245,7 @@ public class JobService {
         if (!experienceFilterService.isExperienceSuitableStructured(jobRef)) {
             log.info("Skipping by experience: {}", jobRef.getTitle());
             saveSkippedJob(jobRef, "STRUCTURED_EXPERIENCE_FILTER", true);
-            return;
+            return null;
         }
 
         Job matched = skillMatcher.matchStructured(jobRef);
@@ -222,6 +253,7 @@ public class JobService {
         matched.setSkipReason(null);
         matched.setAiAnalyzed(true);
         saveMatchedJob(matched);
+        return matched;  // Return matched job for resume tailoring
     }
 
     private void saveMatchedJob(Job matched) {
@@ -241,36 +273,41 @@ public class JobService {
             }
         }
 
-        // Process notifications and resume OUTSIDE the lock
+        // Send Telegram notification immediately (fast)
         if (isNewJob) {
             sendTelegram(matched);
+        }
+    }
 
-            // Phase 3: Resume handling based on AI score
-            double aiScore = matched.getAiMatchScore() != null ? matched.getAiMatchScore() : matched.getMatchScore();
+    /**
+     * Process resume tailoring for a matched job.
+     * Called AFTER all JD fetching threads complete to avoid timeout interruptions.
+     */
+    private void processResumeTailoring(Job matched) {
+        double aiScore = matched.getAiMatchScore() != null ? matched.getAiMatchScore() : matched.getMatchScore();
 
-            if (aiScore >= 50.0) {
-                // High score: Try AI tailoring (costs $0.004)
-                try {
-                    log.info("Generating AI-tailored resume for: {} (AI Score: {}%)",
-                            matched.getTitle(), aiScore);
+        if (aiScore >= 50.0) {
+            // High score: Try AI tailoring (costs $0.004)
+            try {
+                log.info("🔒 Starting resume tailoring for: {} (AI Score: {}%)",
+                        matched.getTitle(), aiScore);
 
-                    var tailoredResume = resumeTailoringService.tailorResume(matched);
-                    telegramService.sendTailoredResume(matched, tailoredResume);
+                var tailoredResume = resumeTailoringService.tailorResume(matched);
+                telegramService.sendTailoredResume(matched, tailoredResume);
 
-                    log.info("✅ Tailored resume sent | ATS Score: {} | Cost: $0.004",
-                            tailoredResume.getAtsScore());
-                } catch (Exception e) {
-                    log.error("❌ Tailoring failed: {}", e.getMessage());
+                log.info("✅ Tailored resume sent | ATS Score: {} | Cost: $0.004",
+                        tailoredResume.getAtsScore());
+            } catch (Exception e) {
+                log.error("❌ Tailoring failed: {}", e.getMessage());
 
-                    // Fallback: Send general resume (no extra cost)
-                    telegramService.sendGeneralResume(matched, "AI tailoring failed - using general resume");
-                    log.info("✅ General resume sent as fallback | Cost: $0");
-                }
-            } else {
-                // Low score: Skip AI, send general resume (no cost)
-                log.info("Skipping AI tailoring (score {}% < 50%), sending general resume | Cost: $0", aiScore);
-                telegramService.sendGeneralResume(matched, "Score below 50% - no AI tailoring needed");
+                // Fallback: Send general resume (no extra cost)
+                telegramService.sendGeneralResume(matched, "AI tailoring failed - using general resume");
+                log.info("✅ General resume sent as fallback | Cost: $0");
             }
+        } else {
+            // Low score: Skip AI, send general resume (no cost)
+            log.info("Skipping AI tailoring (score {}% < 50%), sending general resume | Cost: $0", aiScore);
+            telegramService.sendGeneralResume(matched, "Score below 50% - no AI tailoring needed");
         }
     }
 

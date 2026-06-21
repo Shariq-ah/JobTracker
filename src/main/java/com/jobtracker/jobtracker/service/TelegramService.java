@@ -41,35 +41,70 @@ public class TelegramService {
      * @param resume Tailored resume with PDF and ATS score
      */
     public void sendTailoredResume(Job job, TailoredResume resume) {
-        try {
-            String url = "https://api.telegram.org/bot" + botToken + "/sendDocument";
+        int maxRetries = 3;
 
-            // Create multipart request
-            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-            body.add("chat_id", chatId);
-            body.add("caption", buildResumeCaption(job, resume));
-            body.add("parse_mode", "HTML");
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                String url = "https://api.telegram.org/bot" + botToken + "/sendDocument";
 
-            // Attach PDF with proper filename
-            ByteArrayResource pdfResource = new ByteArrayResource(resume.getPdfBytes()) {
-                @Override
-                public String getFilename() {
-                    return sanitizeFilename(job.getCompany(), job.getTitle());
+                // Create multipart request
+                MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+                body.add("chat_id", chatId);
+                body.add("caption", buildResumeCaption(job, resume));
+                body.add("parse_mode", "HTML");
+
+                // Attach PDF with proper filename
+                ByteArrayResource pdfResource = new ByteArrayResource(resume.getPdfBytes()) {
+                    @Override
+                    public String getFilename() {
+                        return sanitizeFilename(job.getCompany(), job.getTitle());
+                    }
+                };
+                body.add("document", pdfResource);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+                headers.set("Connection", "close");  // Prevent connection pooling issues
+
+                HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
+                ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+                log.info("Tailored resume sent via Telegram: {} (ATS: {})",
+                    response.getStatusCode(), resume.getAtsScore());
+
+                return;  // Success - exit method
+
+            } catch (Exception e) {
+                log.warn("Failed to send tailored resume via Telegram (attempt {}/{}): {}",
+                    attempt, maxRetries, e.getMessage());
+
+                if (attempt == maxRetries) {
+                    log.error("All attempts to send tailored resume failed. Sending text notification instead.");
+                    sendTailoredResumeFailureNotification(job, resume);
+                } else {
+                    try {
+                        Thread.sleep(1000 * attempt);  // Exponential backoff
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
-            };
-            body.add("document", pdfResource);
+            }
+        }
+    }
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-
-            HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
-
-            log.info("Tailored resume sent via Telegram: {} (ATS: {})",
-                response.getStatusCode(), resume.getAtsScore());
-
+    /**
+     * Sends text notification when PDF send fails (fallback).
+     */
+    private void sendTailoredResumeFailureNotification(Job job, TailoredResume resume) {
+        try {
+            String errorMessage = String.format(
+                "PDF send failed after 3 attempts. ATS Score: %d/100. Reasoning: %s",
+                resume.getAtsScore(),
+                truncate(resume.getAtsReasoning(), 100)
+            );
+            sendResumeTailoringFailure(job, errorMessage);
         } catch (Exception e) {
-            log.error("Failed to send tailored resume via Telegram: {}", e.getMessage());
+            log.error("Failed to send fallback notification: {}", e.getMessage());
         }
     }
 
