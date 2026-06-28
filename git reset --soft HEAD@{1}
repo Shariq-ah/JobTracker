@@ -1,0 +1,46 @@
+[33m0b0445e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: reset: moving to HEAD~1
+[33maaf86d6[m HEAD@{1}: commit: Optimized Prompt for Tailored Resume, Synchronized resume tailored and Mongo TTL indexing
+[33m0b0445e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{2}: commit: Amazon Date parsing issue
+[33m75bfc80[m HEAD@{3}: commit: Fix Latex Compilation issue
+[33m903b39b[m HEAD@{4}: commit: Fix LaTeX compilation: comment out missing glyphtounicode file
+[33m4af7ca3[m HEAD@{5}: commit: Add local pdflatex support in Docker for reliable PDF generation
+[33m43aed1c[m HEAD@{6}: commit: PDF fix
+[33md4f2d64[m HEAD@{7}: reset: moving to HEAD~1
+[33mb72de8c[m HEAD@{8}: commit: PDF fix
+[33md4f2d64[m HEAD@{9}: commit: Added Phase 3 - Tailored Resume Generation
+[33maf9fa79[m HEAD@{10}: commit: Reduce Bedrock cost and add LocalMatchScore
+[33m61cfa09[m HEAD@{11}: reset: moving to 61cfa09
+[33mc9dc195[m HEAD@{12}: commit: Reduce Bedrock cost and add LocalMatchScore
+[33me4c7969[m HEAD@{13}: reset: moving to HEAD~1
+[33m984eea2[m HEAD@{14}: commit: remove cred
+[33me4c7969[m HEAD@{15}: commit: Reduce Bedrock cost and add LocalMatchScore
+[33m61cfa09[m HEAD@{16}: commit: Added Amazon Provider
+[33m8bf1196[m HEAD@{17}: commit: chore: Remove temporary setup scripts
+[33md577f55[m HEAD@{18}: commit: feat: Add Phase 2 - AI-Powered Job Matching with AWS Bedrock
+[33m934aa42[m HEAD@{19}: reset: moving to origin/main
+[33m103f3ca[m HEAD@{20}: commit: Implemented phase 2 and added some security
+[33mf8e0fad[m HEAD@{21}: commit: Implemented Phase 2 completely
+[33mc0107d6[m HEAD@{22}: commit: Implemented Phase 2
+[33m934aa42[m HEAD@{23}: commit: Fix Microsoft Retry Mechanism
+[33m8a1656c[m HEAD@{24}: commit: Add documentation to gitignore for security
+[33m0cf9f3e[m HEAD@{25}: commit: Fix visa apply link url
+[33m79bfe21[m HEAD@{26}: commit: Updated url for all job provider
+[33m959b386[m HEAD@{27}: commit: Fix postedAT field for AmEx and JPMC
+[33m44a2b9d[m HEAD@{28}: commit: Move to common Provider
+[33md1cb839[m HEAD@{29}: commit: Fixed Barclays Error
+[33m1d7b35f[m HEAD@{30}: commit: added posted time
+[33me40a09c[m HEAD@{31}: commit: Fix Microsoft Provider by removing some filter
+[33mc88b0c5[m HEAD@{32}: commit: Skill match betterment
+[33mb55a85e[m HEAD@{33}: commit: Fixed partially JD fetch and added Skills
+[33m8456ac7[m HEAD@{34}: commit: Added fixedDelay
+[33m82d393c[m HEAD@{35}: commit: Applied some filter and Implemented parallel processing to fetch JD and to make app faster
+[33md88b34a[m HEAD@{36}: commit: added Barclays provider
+[33m9ce8ce2[m HEAD@{37}: commit: Microsoft Job Provider
+[33mf1ca7da[m HEAD@{38}: commit: Amex Job Provider
+[33m62fbce7[m HEAD@{39}: commit: added JP Morgan Provider
+[33m6c8e834[m HEAD@{40}: commit: added skill match score
+[33m575bd6c[m HEAD@{41}: commit: Format telegram messages
+[33m2263260[m HEAD@{42}: commit: correct mongoDb uri
+[33maba3adf[m HEAD@{43}: commit: add dockerfile
+[33m4cdbb7a[m HEAD@{44}: commit: add health endpoint and externalize secrets
+[33m1d6d557[m HEAD@{45}: clone: from https://github.com/Shariq-ah/JobTracker.git
