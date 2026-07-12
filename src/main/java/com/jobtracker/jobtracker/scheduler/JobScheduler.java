@@ -32,9 +32,16 @@ public class JobScheduler {
 
     private void logMemory(String label) {
         Runtime rt = Runtime.getRuntime();
-        long usedMB = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
-        long maxMB = rt.maxMemory() / (1024 * 1024);
-        log.info("[{}] Heap used: {} MB / {} MB max", label, usedMB, maxMB);
+        long heapUsedMB = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
+        long heapMaxMB = rt.maxMemory() / (1024 * 1024);
+
+        long nonHeapUsedMB = java.lang.management.ManagementFactory
+                .getMemoryMXBean().getNonHeapMemoryUsage().getUsed() / (1024 * 1024);
+
+        int threadCount = Thread.activeCount();
+
+        log.info("[{}] Heap: {}MB/{}MB | NonHeap: {}MB | Threads: {}",
+                label, heapUsedMB, heapMaxMB, nonHeapUsedMB, threadCount);
     }
 
 }
