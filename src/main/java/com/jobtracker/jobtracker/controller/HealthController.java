@@ -8,6 +8,8 @@ public class HealthController {
 
     @GetMapping("/health")
     public String health() {
-        return "JobTracker is running";
+        Runtime rt = Runtime.getRuntime();
+        long usedMB = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
+        return "JobTracker is running | Heap: " + usedMB + "MB";
     }
 }
