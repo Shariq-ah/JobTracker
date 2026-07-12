@@ -9,7 +9,17 @@ public class HealthController {
     @GetMapping("/health")
     public String health() {
         Runtime rt = Runtime.getRuntime();
-        long usedMB = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
-        return "JobTracker is running | Heap: " + usedMB + "MB";
+        long heapUsedMB = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
+        long heapMaxMB = rt.maxMemory() / (1024 * 1024);
+
+        long nonHeapUsedMB = java.lang.management.ManagementFactory
+                .getMemoryMXBean().getNonHeapMemoryUsage().getUsed() / (1024 * 1024);
+
+        int threadCount = Thread.activeCount();
+
+        return String.format(
+                "JobTracker is running | Heap: %dMB/%dMB | NonHeap: %dMB | Threads: %d",
+                heapUsedMB, heapMaxMB, nonHeapUsedMB, threadCount
+        );
     }
 }
