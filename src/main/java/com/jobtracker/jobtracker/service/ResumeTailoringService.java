@@ -205,19 +205,27 @@ public class ResumeTailoringService {
                 log.debug("Claude response length: {} chars, iteration: {}", contentText.length(), iteration);
                 log.debug("Claude response preview: {}", contentText.substring(0, Math.min(200, contentText.length())));
 
-                // Strip markdown code fences
-                String cleaned = contentText
-                        .replaceAll("```json", "")
-                        .replaceAll("```", "")
-                        .replaceAll("`", "")
-                        .trim();
+                // ROBUST EXTRACTION: Handle all Claude response patterns
+                // Pattern 1: ```json\n{...}\n```
+                // Pattern 2: {... } (plain JSON)
+                // Pattern 3: Some text ```json\n{...}\n``` some text
 
-                // EXTRACT JSON ONLY: Claude often adds explanatory text after the JSON
-                // Find the first '{' and last '}' to extract only the JSON object
+                String cleaned = contentText;
+
+                // Remove all markdown code fences (case-insensitive, handle newlines)
+                cleaned = cleaned.replaceAll("(?i)```json\\s*", "");  // Remove ```json with whitespace
+                cleaned = cleaned.replaceAll("```\\s*", "");          // Remove closing ``` with whitespace
+                cleaned = cleaned.replace("`", "");                   // Remove any stray backticks
+                cleaned = cleaned.trim();
+
+                // EXTRACT JSON ONLY: Find first '{' and last '}' to ignore explanatory text
                 int firstBrace = cleaned.indexOf('{');
                 int lastBrace = cleaned.lastIndexOf('}');
 
                 if (firstBrace == -1 || lastBrace == -1 || firstBrace >= lastBrace) {
+                    log.error("No valid JSON braces found. First: {}, Last: {}", firstBrace, lastBrace);
+                    log.error("Cleaned content (first 500 chars): {}",
+                        cleaned.substring(0, Math.min(500, cleaned.length())));
                     throw new RuntimeException("No valid JSON object found in response");
                 }
 
@@ -270,7 +278,14 @@ public class ResumeTailoringService {
                 log.warn("Claude API attempt {} failed: {}", attempt, e.getMessage());
                 log.debug("Full error details", e);
                 if (attempt < maxRetries) {
-                    Thread.sleep(2000 * attempt); // Exponential backoff
+                    try {
+                        Thread.sleep(2000 * attempt); // Exponential backoff
+                    } catch (InterruptedException ie) {
+                        // Restore interrupt flag and abort retry loop
+                        Thread.currentThread().interrupt();
+                        log.error("Thread interrupted during retry backoff - aborting");
+                        throw new RuntimeException("Thread interrupted during retry", ie);
+                    }
                 }
             }
         }

@@ -3,13 +3,19 @@ package com.jobtracker.jobtracker.provider.config;
 import com.jobtracker.jobtracker.provider.DynamicJobProvider;
 import com.jobtracker.jobtracker.provider.JobProvider;
 import com.jobtracker.jobtracker.provider.platform.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
 public class ProviderRegistry {
+
+    private static final Logger log = LoggerFactory.getLogger(ProviderRegistry.class);
 
     private final OracleHcmPlatformHandler oracleHcmHandler;
     private final MicrosoftPlatformHandler microsoftHandler;
@@ -17,6 +23,28 @@ public class ProviderRegistry {
     private final GoldmanSachsPlatformHandler goldmanHandler;
     private final WorkdayPlatformHandler workdayHandler;
     private final AmazonPlatformHandler amazonHandler;
+
+    // Provider enable/disable flags
+    @Value("${provider.microsoft.enabled:true}")
+    private boolean microsoftEnabled;
+
+    @Value("${provider.amazon.enabled:true}")
+    private boolean amazonEnabled;
+
+    @Value("${provider.amex.enabled:true}")
+    private boolean amexEnabled;
+
+    @Value("${provider.jpmorgan.enabled:true}")
+    private boolean jpmorganEnabled;
+
+    @Value("${provider.barclays.enabled:true}")
+    private boolean barclaysEnabled;
+
+    @Value("${provider.goldman.enabled:true}")
+    private boolean goldmanEnabled;
+
+    @Value("${provider.visa.enabled:true}")
+    private boolean visaEnabled;
 
     public ProviderRegistry(
             OracleHcmPlatformHandler oracleHcmHandler,
@@ -35,15 +63,52 @@ public class ProviderRegistry {
 
     @Bean
     public List<JobProvider> jobProviders() {
-        return List.of(
-                amex(),
-                jpmorgan(),
-                barclays(),
-                goldman(),
-                microsoft(),
-                visa(),
-                amazon()
-        );
+        List<JobProvider> providers = new ArrayList<>();
+
+        if (amexEnabled) {
+            providers.add(amex());
+        } else {
+            log.warn("⏸️ American Express provider DISABLED via config");
+        }
+
+        if (jpmorganEnabled) {
+            providers.add(jpmorgan());
+        } else {
+            log.warn("⏸️ JPMorgan provider DISABLED via config");
+        }
+
+        if (barclaysEnabled) {
+            providers.add(barclays());
+        } else {
+            log.warn("⏸️ Barclays provider DISABLED via config");
+        }
+
+        if (goldmanEnabled) {
+            providers.add(goldman());
+        } else {
+            log.warn("⏸️ Goldman Sachs provider DISABLED via config");
+        }
+
+        if (microsoftEnabled) {
+            providers.add(microsoft());
+        } else {
+            log.warn("⏸️ Microsoft provider DISABLED via config");
+        }
+
+        if (visaEnabled) {
+            providers.add(visa());
+        } else {
+            log.warn("⏸️ Visa provider DISABLED via config");
+        }
+
+        if (amazonEnabled) {
+            providers.add(amazon());
+        } else {
+            log.warn("⏸️ Amazon provider DISABLED via config");
+        }
+
+        log.info("✅ Loaded {} active job providers", providers.size());
+        return providers;
     }
 
     // ─── American Express ───────────────────────────────────────────
@@ -184,7 +249,7 @@ public class ProviderRegistry {
                         .limit(25)
                         .lookbackDays(2)
                         .jobUrlTemplate("https://apply.careers.microsoft.com/careers/job/{id}")
-                        .jdFetchDelayMs(5000)  // Increased from 3000ms due to strict rate limiting
+                        .jdFetchDelayMs(10000)  // Increased to 10s - Microsoft has very strict rate limiting
                         .jdFetchThreads(1)
                         .build(),
                 oracleHcmHandler, microsoftHandler, barclaysHandler, goldmanHandler, workdayHandler, amazonHandler);
