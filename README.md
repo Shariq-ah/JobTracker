@@ -13,41 +13,123 @@ Automated job scraping and matching system for Java backend developer positions.
 
 ## Quick Start
 
+Follow these steps after cloning the repo to build and run JobTracker locally.
+
 ### Prerequisites
 
-- Java 17+
-- Maven 3.9+
-- MongoDB
-- Telegram Bot Token
-- AWS Account with Bedrock access
+| Requirement | Notes |
+|-------------|--------|
+| **Java 17+** | Required to run the app |
+| **Maven** | Use the included wrapper: `./mvnw` (no global Maven install needed) |
+| **MongoDB** | Must be running before the app starts |
+| **Telegram bot** | Bot token + chat ID for job notifications |
+| **AWS Bedrock** | Optional for local dev — mock AI mode is enabled by default |
 
-### Local Development
+Optional (for resume PDF generation):
+- **TeX Live** (`pdflatex`) for local LaTeX compilation, or use the online fallback
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd JobTracker
-   ```
+### 1. Clone the repository
 
-2. **Set up environment variables**
-   ```bash
-   # Copy example file
-   cp .env.example .env.local
-   
-   # Edit .env.local with your credentials
-   nano .env.local
-   ```
+```bash
+git clone <repository-url>
+cd JobTracker
+```
 
-3. **Set environment variables in your shell**
-   ```bash
-   # Load environment variables
-   export $(cat .env.local | xargs)
-   ```
+### 2. Start MongoDB
 
-4. **Run the application**
-   ```bash
-   ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
-   ```
+Using Docker (recommended):
+
+```bash
+docker run -d -p 27017:27017 --name mongodb mongo:latest
+```
+
+Or point `MONGO_URI` at any existing MongoDB instance.
+
+Default connection: `mongodb://localhost:27017/jobtracker`
+
+### 3. Configure credentials
+
+Copy the example env file and fill in your values:
+
+```bash
+cp .env.example .env.local
+# Edit .env.local with your Telegram (and optionally AWS) credentials
+nano .env.local
+```
+
+Load environment variables into your shell:
+
+```bash
+export $(grep -v '^#' .env.local | xargs)
+```
+
+**Minimum required for notifications:**
+
+```bash
+export TELEGRAM_BOT_TOKEN="your_bot_token"
+export TELEGRAM_CHAT_ID="your_chat_id"
+```
+
+**AWS credentials** are only needed if you disable mock AI mode (see below).
+
+> **Security:** Never commit `.env.local` or real credentials to Git. Use environment variables only.
+
+### 4. Build the project
+
+```bash
+./mvnw clean install
+```
+
+### 5. Run the application (dev profile)
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
+```
+
+Or run the packaged JAR:
+
+```bash
+java -jar target/jobtracker-0.0.1-SNAPSHOT.jar --spring.profiles.active=dev
+```
+
+### 6. Verify it is running
+
+```bash
+curl http://localhost:8080/health
+# Expected: JobTracker is running
+```
+
+On startup you should see:
+
+```
+========== JobTracker STARTED at ... ==========
+```
+
+The scheduler waits **10 seconds**, then runs job checks every **5 minutes** (after each run completes).
+
+### Profiles
+
+| Profile | Use case | Config file |
+|---------|----------|-------------|
+| **dev** | Local development (mock AI enabled by default) | `application-dev.properties` |
+| **prod** | Production, Docker, Render | `application-prod.properties` |
+| *(default)* | Env var fallbacks | `application.properties` |
+
+### Local dev without AWS costs
+
+The dev profile enables **mock AI** by default (`AI_DEV_MOCK_ENABLED=true`), so you can test job scraping and notifications without calling AWS Bedrock.
+
+To use real AI scoring locally:
+
+```bash
+export AI_DEV_MOCK_ENABLED=false
+export AWS_ACCESS_KEY_ID="your_access_key"
+export AWS_SECRET_ACCESS_KEY="your_secret_key"
+```
+
+### Run a job check immediately (optional)
+
+By default, jobs run on the scheduler only. To trigger a scan on startup, uncomment a `CommandLineRunner` bean in `JobtrackerApplication.java`.
 
 ### Docker Deployment
 
@@ -57,6 +139,7 @@ docker build -t jobtracker:latest .
 
 # Run with environment variables
 docker run -d \
+  -p 8080:8080 \
   -e MONGO_URI="mongodb://host.docker.internal:27017/jobtracker" \
   -e TELEGRAM_BOT_TOKEN="your_token" \
   -e TELEGRAM_CHAT_ID="your_chat_id" \
@@ -65,6 +148,17 @@ docker run -d \
   --name jobtracker \
   jobtracker:latest
 ```
+
+The Docker image uses the **prod** profile and includes LaTeX for resume PDF generation.
+
+### Common issues
+
+| Issue | Fix |
+|-------|-----|
+| MongoDB connection failed | Ensure MongoDB is running on `localhost:27017` |
+| No Telegram messages | Verify `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set |
+| AWS / Bedrock errors | Keep `AI_DEV_MOCK_ENABLED=true` for local testing |
+| Resume PDF fails | Install TeX Live (`pdflatex`) or set `LATEX_LOCAL_ENABLED=false` |
 
 ### Render.com Deployment
 
@@ -96,6 +190,10 @@ docker run -d \
 | `AWS_SECRET_ACCESS_KEY` | AWS secret key | Yes | - |
 | `AWS_BEDROCK_REGION` | AWS region | No | us-east-1 |
 | `AWS_BEDROCK_MODEL_ID` | Claude model ID | No | us.anthropic.claude-haiku-4-5-20251001-v1:0 |
+| `AI_DEV_MOCK_ENABLED` | Use mock AI instead of AWS Bedrock (dev) | No | `true` |
+| `AI_BEDROCK_ENABLED` | Enable/disable Bedrock AI scoring | No | `true` |
+| `RESUME_TAILORING_ENABLED` | Enable AI resume tailoring | No | `true` |
+| `LATEX_LOCAL_ENABLED` | Compile PDFs locally with pdflatex | No | `true` |
 
 ### Candidate Profile
 
