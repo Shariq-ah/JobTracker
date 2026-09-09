@@ -15,7 +15,7 @@ class ExperienceFilterServiceTest {
     @BeforeEach
     void setUp() {
         CandidateProfile profile = new CandidateProfile();
-        profile.setExperience(3.6);
+        profile.setExperience(4);
         experienceFilterService = new ExperienceFilterService(profile);
     }
 

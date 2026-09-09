@@ -21,7 +21,7 @@ public class ExperienceFilterService {
     }
 
     /**
-     * Maximum job minimum-experience we accept (e.g. 3.6 yrs → allow jobs asking up to 4 yrs min).
+     * Maximum job minimum-experience we accept (e.g. 4 yrs → allow jobs asking up to 4 yrs min).
      */
     private int getMaxAcceptableMinExperience() {
         return (int) Math.ceil(candidateProfile.getExperience());

@@ -22,6 +22,6 @@ public class CandidateProfile {
 
     // Skills and experience
     private List<String> skills;
-    private double experience;  // Changed to double for 3.6 years
+    private double experience;
     private List<String> roles;
 }
