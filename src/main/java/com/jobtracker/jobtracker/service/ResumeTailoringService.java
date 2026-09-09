@@ -134,7 +134,7 @@ public class ResumeTailoringService {
         for (int iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
             try {
                 // Build prompt (initial or improvement)
-                String prompt = (iteration == 1)
+                String prompt = (iteration == 1 || result == null)
                     ? buildInitialPrompt(job)
                     : buildImprovementPrompt(job, result, iteration);
 
@@ -164,7 +164,7 @@ public class ResumeTailoringService {
         }
 
         // Return best attempt even if < 85%
-        int finalScore = result != null ? result.path("atsScore").asInt(0) : 0;
+        int finalScore = result.path("atsScore").asInt(0);
         log.warn("⚠️ Could not reach {}% ATS after {} iterations. Final score: {}",
                  TARGET_ATS_SCORE, MAX_ITERATIONS, finalScore);
         return result;
@@ -279,7 +279,7 @@ public class ResumeTailoringService {
                 log.debug("Full error details", e);
                 if (attempt < maxRetries) {
                     try {
-                        Thread.sleep(2000 * attempt); // Exponential backoff
+                        Thread.sleep(2000L * attempt); // Exponential backoff
                     } catch (InterruptedException ie) {
                         // Restore interrupt flag and abort retry loop
                         Thread.currentThread().interrupt();

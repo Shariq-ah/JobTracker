@@ -1,5 +1,6 @@
 package com.jobtracker.jobtracker.service;
 
+import com.jobtracker.jobtracker.config.CandidateProfile;
 import com.jobtracker.jobtracker.model.Job;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,14 +14,27 @@ public class ExperienceFilterService {
 
     private static final Logger log = LoggerFactory.getLogger(ExperienceFilterService.class);
 
-    private static final int CANDIDATE_EXPERIENCE = 3;
-    private static final int MAX_ACCEPTABLE_MIN = 4; // block 5+ years
+    private final CandidateProfile candidateProfile;
+
+    public ExperienceFilterService(CandidateProfile candidateProfile) {
+        this.candidateProfile = candidateProfile;
+    }
+
+    /**
+     * Maximum job minimum-experience we accept (e.g. 4 yrs → allow jobs asking up to 4 yrs min).
+     */
+    private int getMaxAcceptableMinExperience() {
+        return (int) Math.ceil(candidateProfile.getExperience());
+    }
 
     /**
      * Quick title-only check — no JD needed.
      * Returns false for obvious senior/management roles.
      */
     public boolean isTitleSuitable(String title) {
+        if (title == null || title.isBlank()) {
+            return false;
+        }
         String titleLower = title.toLowerCase();
         return !(titleLower.contains("principal") ||
                 titleLower.contains("manager") ||
@@ -41,11 +55,12 @@ public class ExperienceFilterService {
 
         // Title check (catches anything isTitleSuitable missed)
         if (!isTitleSuitable(title)) {
-            log.info("Skipping senior/management role: {}", title);
+            logSkipSeniorTitle(title, "regex");
             return false;
         }
 
-        String text = (description + " " + title).toLowerCase();
+        String safeDescription = description == null ? "" : description;
+        String text = (safeDescription + " " + title).toLowerCase();
         int minExp = extractMinExperience(text);
 
         if (minExp == -1) {
@@ -53,13 +68,13 @@ public class ExperienceFilterService {
             return true;
         }
 
-        if (minExp > MAX_ACCEPTABLE_MIN) {
+        if (minExp > getMaxAcceptableMinExperience()) {
             log.info("Skipping job requiring {}+ years: {}", minExp, title);
             return false;
         }
 
         log.info("Experience filter passed: {}+ years required, candidate has {}: {}",
-                minExp, CANDIDATE_EXPERIENCE, title);
+                minExp, candidateProfile.getExperience(), title);
         return true;
     }
 
@@ -99,7 +114,7 @@ public class ExperienceFilterService {
     public boolean isExperienceSuitableStructured(Job job) {
         // First, always check title (quick filter)
         if (!isTitleSuitable(job.getTitle())) {
-            log.info("Skipping senior/management role: {}", job.getTitle());
+            logSkipSeniorTitle(job.getTitle(), "structured");
             return false;
         }
 
@@ -108,18 +123,22 @@ public class ExperienceFilterService {
                 && job.getMinExperienceRequired() != null) {
             int minRequired = job.getMinExperienceRequired();
 
-            if (minRequired > MAX_ACCEPTABLE_MIN) {
+            if (minRequired > getMaxAcceptableMinExperience()) {
                 log.info("Skipping job requiring {}+ years (structured): {}",
                     minRequired, job.getTitle());
                 return false;
             }
 
             log.info("Experience filter passed (structured): {}+ years required, candidate has {}: {}",
-                    minRequired, CANDIDATE_EXPERIENCE, job.getTitle());
+                    minRequired, candidateProfile.getExperience(), job.getTitle());
             return true;
         }
 
         // Fallback to regex-based filtering
         return isExperienceSuitable(job.getDescription(), job.getTitle());
+    }
+
+    private void logSkipSeniorTitle(String title, String path) {
+        log.info("Skipping senior/management role ({}): {}", path, title);
     }
 }

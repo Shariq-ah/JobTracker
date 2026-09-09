@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -103,13 +102,12 @@ public class JobService {
                 boolean needsJdFetch = threadCount > 0;
 
                 ExecutorService executor = needsJdFetch ? Executors.newFixedThreadPool(threadCount) : null;
-                List<Future<?>> futures = new ArrayList<>();
 
                 for (Job job : newJobs) {
                     final Job jobRef = job;
 
                     if (needsJdFetch) {
-                        Future<?> future = executor.submit(() -> {
+                        executor.submit(() -> {
                             try {
                                 Thread.sleep(delayMs);
 
@@ -129,16 +127,15 @@ public class JobService {
                                 Thread.currentThread().interrupt();
                                 log.error("Thread interrupted for: {}", jobRef.getTitle());
                             } catch (Exception e) {
-                                log.error("Error processing {}: {}", jobRef.getTitle(), e.getMessage());
+                                log.error("Error processing {} during JD fetch: {}", jobRef.getTitle(), e.getMessage());
                             }
                         });
-                        futures.add(future);
                     } else {
                         // Description already in job object (e.g., Amazon), process directly
                         try {
                             processJob(provider, jobRef);
                         } catch (Exception e) {
-                            log.error("Error processing {}: {}", jobRef.getTitle(), e.getMessage());
+                            log.error("Error processing {} without JD fetch: {}", jobRef.getTitle(), e.getMessage());
                         }
                     }
                 }
@@ -315,9 +312,9 @@ public class JobService {
             String summary = job.getDescription() == null ? "N/A"
                     : job.getDescription()
                     .substring(0, Math.min(200, job.getDescription().length()))
-                    .replaceAll("&", "&amp;")
-                    .replaceAll("<", "&lt;")
-                    .replaceAll(">", "&gt;");
+                    .replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;");
 
             // Build recommendation emoji
             String recommendationEmoji = getRecommendationEmoji(job.getApplyRecommendation());

@@ -402,9 +402,7 @@ public class JdExtractionService {
         if (hasMicroservices) finalScore += 2;
         finalScore = Math.min(finalScore, 95);  // Cap at 95
 
-        String recommendation = finalScore >= 80 ? "Strong Apply" :
-                               finalScore >= 60 ? "Apply" :
-                               finalScore >= 40 ? "Consider" : "Skip";
+        String recommendation = finalScore >= 80 ? "Strong Apply" : "Apply";
 
         return String.format("""
             {

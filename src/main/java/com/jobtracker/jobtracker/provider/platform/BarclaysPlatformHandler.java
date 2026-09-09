@@ -157,7 +157,13 @@ public class BarclaysPlatformHandler implements PlatformHandler {
                     url, HttpMethod.GET,
                     new HttpEntity<>(headers), String.class);
 
-            Document doc = Jsoup.parse(response.getBody());
+            String body = response.getBody();
+            if (body == null || body.isBlank()) {
+                log.warn("Empty response body for Barclays job: {}", externalId);
+                return "";
+            }
+
+            Document doc = Jsoup.parse(body);
 
             // Try common JD selectors
             Element jdSection = doc.selectFirst(".job-description");
