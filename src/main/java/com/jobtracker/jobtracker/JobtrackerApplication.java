@@ -28,7 +28,7 @@ public class JobtrackerApplication {
 
 	@PostConstruct
 	public void logStartup() {
-		log.info("========== JobTracker STARTED at " + LocalDateTime.now() + " ==========");
+		log.info("========== JobTracker STARTED at {} ==========", LocalDateTime.now());
 	}
 
 //    @Bean

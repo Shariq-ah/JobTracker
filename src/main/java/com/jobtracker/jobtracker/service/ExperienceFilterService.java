@@ -32,6 +32,9 @@ public class ExperienceFilterService {
      * Returns false for obvious senior/management roles.
      */
     public boolean isTitleSuitable(String title) {
+        if (title == null || title.isBlank()) {
+            return false;
+        }
         String titleLower = title.toLowerCase();
         return !(titleLower.contains("principal") ||
                 titleLower.contains("manager") ||
@@ -52,11 +55,12 @@ public class ExperienceFilterService {
 
         // Title check (catches anything isTitleSuitable missed)
         if (!isTitleSuitable(title)) {
-            log.info("Skipping senior/management role: {}", title);
+            logSkipSeniorTitle(title, "regex");
             return false;
         }
 
-        String text = (description + " " + title).toLowerCase();
+        String safeDescription = description == null ? "" : description;
+        String text = (safeDescription + " " + title).toLowerCase();
         int minExp = extractMinExperience(text);
 
         if (minExp == -1) {
@@ -110,7 +114,7 @@ public class ExperienceFilterService {
     public boolean isExperienceSuitableStructured(Job job) {
         // First, always check title (quick filter)
         if (!isTitleSuitable(job.getTitle())) {
-            log.info("Skipping senior/management role: {}", job.getTitle());
+            logSkipSeniorTitle(job.getTitle(), "structured");
             return false;
         }
 
@@ -132,5 +136,9 @@ public class ExperienceFilterService {
 
         // Fallback to regex-based filtering
         return isExperienceSuitable(job.getDescription(), job.getTitle());
+    }
+
+    private void logSkipSeniorTitle(String title, String path) {
+        log.info("Skipping senior/management role ({}): {}", path, title);
     }
 }

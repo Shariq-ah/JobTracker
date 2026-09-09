@@ -138,15 +138,16 @@ public class LocalLaTeXCompilerService {
      */
     private void deleteDirectory(Path directory) throws Exception {
         if (Files.exists(directory)) {
-            Files.walk(directory)
-                .sorted(java.util.Comparator.reverseOrder())
-                .forEach(path -> {
-                    try {
-                        Files.delete(path);
-                    } catch (Exception e) {
-                        // Ignore cleanup errors
-                    }
-                });
+            try (var paths = Files.walk(directory)) {
+                paths.sorted(java.util.Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (Exception e) {
+                            // Ignore cleanup errors
+                        }
+                    });
+            }
         }
     }
 }
