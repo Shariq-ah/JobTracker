@@ -13,7 +13,7 @@ import java.nio.file.Files;
 /**
  * Service to manage the general (non-tailored) resume PDF.
  * Loads user's pre-compiled PDF once at startup and caches it.
- * Used for jobs with score < 50% or when tailoring fails.
+ * Used when score is below resume.tailoring.min-score, tailoring is disabled, or tailoring fails.
  * Cost: $0 (no AI calls, no compilation)
  */
 @Service
@@ -72,7 +72,7 @@ public class GeneralResumeService {
             log.warn("⚠️ General resume PDF not found. Please place it at:");
             log.warn("   Option 1: src/main/resources/resume/general_resume.pdf");
             log.warn("   Option 2: Configure 'resume.general.pdf.path' in application.properties");
-            log.warn("   → Jobs with score < 50% or tailoring failures will not receive resume PDFs");
+            log.warn("   → Jobs below resume.tailoring.min-score or tailoring failures will not receive resume PDFs");
             initialized = false;
 
         } catch (Exception e) {
