@@ -131,7 +131,8 @@ public class TelegramService {
     }
 
     /**
-     * Sends general (non-tailored) resume for jobs with score < 50% or when tailoring fails.
+     * Sends general (non-tailored) resume when score is below resume.tailoring.min-score,
+     * tailoring is disabled, or AI tailoring fails.
      * Cost: $0 (no AI, uses pre-compiled PDF)
      */
     public void sendGeneralResume(Job job, String reason) {

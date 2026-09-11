@@ -36,6 +36,12 @@ public class JobService {
     @Value("${ai.bedrock.min-local-score:50}")
     private int minLocalScoreForBedrock;
 
+    @Value("${resume.tailoring.enabled:true}")
+    private boolean resumeTailoringEnabled;
+
+    @Value("${resume.tailoring.min-score:70}")
+    private double resumeTailoringMinScore;
+
     private static final Logger log = LoggerFactory.getLogger(JobService.class);
 
     private final JobRepository repository;
@@ -242,14 +248,12 @@ public class JobService {
         if (isNewJob) {
             sendTelegram(matched);
 
-            // Phase 3: Resume handling based on AI score
             double aiScore = matched.getAiMatchScore() != null ? matched.getAiMatchScore() : matched.getMatchScore();
 
-            if (aiScore >= 50.0) {
-                // High score: Try AI tailoring (costs $0.004)
+            if (shouldTailorResume(aiScore)) {
                 try {
-                    log.info("Generating AI-tailored resume for: {} (AI Score: {}%)",
-                            matched.getTitle(), aiScore);
+                    log.info("Generating AI-tailored resume for: {} (AI Score: {}%, threshold: {}%)",
+                            matched.getTitle(), aiScore, resumeTailoringMinScore);
 
                     var tailoredResume = resumeTailoringService.tailorResume(matched);
                     telegramService.sendTailoredResume(matched, tailoredResume);
@@ -259,14 +263,16 @@ public class JobService {
                 } catch (Exception e) {
                     log.error("❌ Tailoring failed: {}", e.getMessage());
 
-                    // Fallback: Send general resume (no extra cost)
                     telegramService.sendGeneralResume(matched, "AI tailoring failed - using general resume");
                     log.info("✅ General resume sent as fallback | Cost: $0");
                 }
             } else {
-                // Low score: Skip AI, send general resume (no cost)
-                log.info("Skipping AI tailoring (score {}% < 50%), sending general resume | Cost: $0", aiScore);
-                telegramService.sendGeneralResume(matched, "Score below 50% - no AI tailoring needed");
+                String reason = !resumeTailoringEnabled
+                        ? "Resume tailoring disabled in config"
+                        : "Score below tailoring threshold (" + (int) resumeTailoringMinScore + "%)";
+                log.info("Skipping AI tailoring (score {}%, threshold {}%, enabled={}), sending general resume | Cost: $0",
+                        aiScore, resumeTailoringMinScore, resumeTailoringEnabled);
+                telegramService.sendGeneralResume(matched, reason);
             }
         }
     }
@@ -326,14 +332,10 @@ public class JobService {
                 ? job.getScoreReason()
                 : "Match calculated based on skills and experience";
 
-            // Check resume type based on score
             double aiScore = job.getAiMatchScore() != null ? job.getAiMatchScore() : job.getMatchScore();
-            String resumeNotice;
-            if (aiScore >= 50.0) {
-                resumeNotice = "\n\n📄 <i>AI-tailored resume generating... Will arrive in ~5-8 seconds ⬇️</i>";
-            } else {
-                resumeNotice = "\n\n📄 <i>General resume will arrive shortly (no AI cost) ⬇️</i>";
-            }
+            String resumeNotice = shouldTailorResume(aiScore)
+                    ? "\n\n📄 <i>AI-tailored resume generating... Will arrive in ~5-8 seconds ⬇️</i>"
+                    : "\n\n📄 <i>General resume will arrive shortly (no AI cost) ⬇️</i>";
 
             String message = """
                 🚀 <b>New Job Alert</b>
@@ -455,5 +457,9 @@ public class JobService {
             case "skip" -> "⛔";
             default -> "";
         };
+    }
+
+    private boolean shouldTailorResume(double aiScore) {
+        return resumeTailoringEnabled && aiScore >= resumeTailoringMinScore;
     }
 }
