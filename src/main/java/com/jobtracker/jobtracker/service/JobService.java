@@ -1,5 +1,6 @@
 package com.jobtracker.jobtracker.service;
 
+import com.jobtracker.jobtracker.config.CandidateProfile;
 import com.jobtracker.jobtracker.model.Job;
 import com.jobtracker.jobtracker.provider.DynamicJobProvider;
 import com.jobtracker.jobtracker.provider.JobProvider;
@@ -59,6 +60,9 @@ public class JobService {
 
     @Autowired
     private TelegramService telegramService;
+
+    @Autowired
+    private CandidateProfile candidateProfile;
 
     public JobService(JobRepository repository,
                       List<JobProvider> providers,
@@ -246,9 +250,15 @@ public class JobService {
 
         // Process notifications and resume OUTSIDE the lock
         if (isNewJob) {
-            sendTelegram(matched);
-
             double aiScore = matched.getAiMatchScore() != null ? matched.getAiMatchScore() : matched.getMatchScore();
+
+            if (!shouldNotifyJob(aiScore)) {
+                log.info("Saved matched job below notify threshold (score {}%, threshold {}%): {}",
+                        aiScore, candidateProfile.getNotifyMinScore(), matched.getTitle());
+                return;
+            }
+
+            sendTelegram(matched);
 
             if (shouldTailorResume(aiScore)) {
                 try {
@@ -461,5 +471,9 @@ public class JobService {
 
     private boolean shouldTailorResume(double aiScore) {
         return resumeTailoringEnabled && aiScore >= resumeTailoringMinScore;
+    }
+
+    private boolean shouldNotifyJob(double aiScore) {
+        return aiScore >= candidateProfile.getNotifyMinScore();
     }
 }

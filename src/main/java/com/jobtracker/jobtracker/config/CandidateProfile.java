@@ -24,4 +24,7 @@ public class CandidateProfile {
     private List<String> skills;
     private double experience;
     private List<String> roles;
+
+    /** Minimum AI/local match score before sending Telegram alert (interim default 50 until RecruiterFit). */
+    private int notifyMinScore = 50;
 }
