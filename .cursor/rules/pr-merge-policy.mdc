@@ -1,0 +1,29 @@
+---
+description: Never merge pull requests unless the user explicitly asks
+alwaysApply: true
+---
+
+# Pull request merge policy
+
+**Do not merge pull requests unless the user explicitly asks you to merge.**
+
+## Required behavior
+
+- Open PRs as **draft** by default.
+- Push branches and create/update PRs only — stop at "ready for your review."
+- **Never** run `gh pr merge`, `ManagePullRequest` with merge intent, or mark a PR ready and merge it on your own.
+- **Never** push directly to `main` or other protected branches to land changes without a PR the user merges.
+
+## When merging is allowed
+
+Merge only if the user gives an explicit instruction, for example:
+
+- "merge the PR"
+- "merge it"
+- "go ahead and merge"
+
+Phrases like "fix this", "revert PR #10", or "implement phase 0.5" do **not** imply merge permission. Do the work, open/update a draft PR, and wait.
+
+## If the environment has merge permissions
+
+GitHub tokens in Cloud Agent may allow merges. **That capability is not permission to use it.** The user merges their own PRs.
