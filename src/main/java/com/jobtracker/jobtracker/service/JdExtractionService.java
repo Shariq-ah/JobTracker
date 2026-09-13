@@ -402,16 +402,8 @@ public class JdExtractionService {
         if (hasMicroservices) finalScore += 2;
         finalScore = Math.min(finalScore, 95);  // Cap at 95
 
-        String recommendation;
-        if (finalScore >= 80) {
-            recommendation = "Strong Apply";
-        } else if (finalScore >= 60) {
-            recommendation = "Apply";
-        } else if (finalScore >= 40) {
-            recommendation = "Consider";
-        } else {
-            recommendation = "Skip";
-        }
+        // Mock base score is always 60+, so only Strong Apply / Apply tiers apply here.
+        String recommendation = finalScore >= 80 ? "Strong Apply" : "Apply";
 
         return String.format("""
             {
