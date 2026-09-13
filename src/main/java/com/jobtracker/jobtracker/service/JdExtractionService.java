@@ -405,6 +405,11 @@ public class JdExtractionService {
         // Mock base score is always 60+, so only Strong Apply / Apply tiers apply here.
         String recommendation = finalScore >= 80 ? "Strong Apply" : "Apply";
 
+        int candidateYears = (int) Math.round(candidateProfile.getExperience());
+        int minExperience = Math.max(2, candidateYears - 1);
+        int maxExperience = candidateYears + 1;
+        String experienceQualification = String.format("%d+ years Java experience", candidateYears);
+
         return String.format("""
             {
               "score": %d,
@@ -413,8 +418,8 @@ public class JdExtractionService {
               "requiredSkills": ["Java", "Spring Boot", "Microservices"],
               "preferredSkills": ["Kafka", "Docker", "AWS"],
               "niceToHaveSkills": ["Kubernetes", "MongoDB"],
-              "minExperience": 3,
-              "maxExperience": 5,
+              "minExperience": %d,
+              "maxExperience": %d,
               "jobLevel": "SDE2",
               "workMode": "HYBRID",
               "employmentType": "Full-time",
@@ -423,10 +428,10 @@ public class JdExtractionService {
               "salaryCurrency": "INR",
               "teamDescription": "Mock team description for testing",
               "responsibilities": ["Design and implement microservices", "Collaborate with cross-functional teams"],
-              "qualifications": ["3+ years Java experience", "Spring Boot proficiency"],
+              "qualifications": ["%s", "Spring Boot proficiency"],
               "applyRecommendation": "%s",
               "scoreReason": "Mock response for testing - strong Java/Spring Boot match with relevant experience"
             }
-            """, finalScore, recommendation);
+            """, finalScore, minExperience, maxExperience, experienceQualification, recommendation);
     }
 }

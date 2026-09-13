@@ -22,7 +22,7 @@ class JdExtractionMockResponseTest {
     @BeforeEach
     void setUp() {
         CandidateProfile candidateProfile = new CandidateProfile();
-        candidateProfile.setExperience(3.6);
+        candidateProfile.setExperience(4);
         candidateProfile.setSkills(List.of("Java", "Spring Boot", "Kafka"));
 
         jdExtractionService = new JdExtractionService();
@@ -53,8 +53,8 @@ class JdExtractionMockResponseTest {
         assertNotNull(result.getScoreReason());
         assertNotNull(result.getRequiredSkills());
         assertNotNull(result.getMatchedSkills());
-        assertEquals(3, result.getMinExperienceRequired());
-        assertEquals(5, result.getMaxExperienceRequired());
+        assertEquals(3, result.getMinExperienceRequired()); // candidateYears - 1
+        assertEquals(5, result.getMaxExperienceRequired()); // candidateYears + 1
         assertEquals(WorkMode.HYBRID, result.getWorkMode());
         assertEquals("SDE2", result.getJobLevel());
         assertNotNull(result.getResponsibilities());
