@@ -402,27 +402,38 @@ public class JdExtractionService {
         if (hasMicroservices) finalScore += 2;
         finalScore = Math.min(finalScore, 95);  // Cap at 95
 
-        String recommendation = finalScore >= 80 ? "Strong Apply" : "Apply";
+        String recommendation;
+        if (finalScore >= 80) {
+            recommendation = "Strong Apply";
+        } else if (finalScore >= 60) {
+            recommendation = "Apply";
+        } else if (finalScore >= 40) {
+            recommendation = "Consider";
+        } else {
+            recommendation = "Skip";
+        }
 
         return String.format("""
             {
-              "matchScore": %d,
-              "recommendation": "%s",
-              "scoreReason": "Mock response for testing - strong Java/Spring Boot match with relevant experience",
+              "score": %d,
               "matchedSkills": ["Java", "Spring Boot", "REST API", "SQL"],
               "missingSkills": ["Kafka", "AWS"],
               "requiredSkills": ["Java", "Spring Boot", "Microservices"],
               "preferredSkills": ["Kafka", "Docker", "AWS"],
               "niceToHaveSkills": ["Kubernetes", "MongoDB"],
-              "minExperienceRequired": 3,
-              "maxExperienceRequired": 5,
+              "minExperience": 3,
+              "maxExperience": 5,
               "jobLevel": "SDE2",
               "workMode": "HYBRID",
-              "salaryMinINR": 2000000,
-              "salaryMaxINR": 3500000,
+              "employmentType": "Full-time",
+              "salaryMin": 2000000,
+              "salaryMax": 3500000,
+              "salaryCurrency": "INR",
               "teamDescription": "Mock team description for testing",
-              "responsibilities": "Mock responsibilities",
-              "qualifications": "Mock qualifications"
+              "responsibilities": ["Design and implement microservices", "Collaborate with cross-functional teams"],
+              "qualifications": ["3+ years Java experience", "Spring Boot proficiency"],
+              "applyRecommendation": "%s",
+              "scoreReason": "Mock response for testing - strong Java/Spring Boot match with relevant experience"
             }
             """, finalScore, recommendation);
     }
