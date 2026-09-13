@@ -582,6 +582,7 @@ public class ResumeTailoringService {
                     "Designed event-driven Kafka pipeline processing 10K QPS with guaranteed delivery, automatic retry mechanisms, and Kubernetes orchestration",
                     "Designed RESTful APIs serving 100M+ users with 99.95%% uptime using Spring Boot, Docker containerization, and CI/CD deployment automation"
                   ],
+                  "projectBullets": ["JobTracker - Automated job aggregation system integrating 10+ company APIs with Spring Boot and Kafka"],
                   "atsScore": %d,
                   "atsReasoning": "Mock ATS analysis - strong keyword alignment with Java, Spring Boot, Microservices, Docker, Kubernetes. Quantified achievements present. Technical acronyms included."
                 }
