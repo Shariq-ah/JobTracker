@@ -237,7 +237,7 @@ flowchart TB
 | Notifications | Telegram Bot API |
 | Build | Maven 3.9.6 (wrapper included) |
 | Containerization | Docker (multi-stage build with TeX Live) |
-| CI/CD | GitHub Actions → EC2 deployment |
+| CI/CD | GitHub Actions → Render verification + Telegram alerts |
 
 ---
 
@@ -392,7 +392,7 @@ JobTracker/
 │   └── resume/
 │       └── base_resume.tex              # LaTeX resume template
 ├── src/test/java/                       # Spring Boot tests
-├── .github/workflows/deploy.yml         # CI/CD to EC2
+├── .github/workflows/deploy.yml         # Verify Render deploy + Telegram notify
 ├── Dockerfile                           # Multi-stage build with TeX Live
 ├── .env.example                         # Environment variable template
 ├── pom.xml                              # Maven dependencies
@@ -547,11 +547,19 @@ docker run -d \
 
 The Docker image uses the **prod** profile and includes TeX Live for local PDF compilation.
 
-### GitHub Actions → EC2
+### GitHub Actions → Render verification
 
-On push to `main`, `.github/workflows/deploy.yml` builds the JAR and deploys to EC2 via SCP + SSH restart.
+On push to `main`, `.github/workflows/deploy.yml` builds the app, waits for Render to serve the new commit, and sends a Telegram notification on success or failure.
 
-Required GitHub secrets: `EC2_HOST`, `EC2_USER`, `EC2_KEY`
+Required GitHub secrets:
+
+| Secret | Example |
+|--------|---------|
+| `RENDER_HEALTH_URL` | `https://your-app.onrender.com/health` |
+| `TELEGRAM_BOT_TOKEN` | Same bot token used in Render |
+| `TELEGRAM_CHAT_ID` | Same chat ID used in Render |
+
+Render sets `RENDER_GIT_COMMIT` automatically; the `/health` endpoint exposes the deployed commit so CI can verify the new version is live.
 
 ### Render.com
 

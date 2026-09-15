@@ -38,7 +38,30 @@ LATEX_LOCAL_ENABLED=true
 
 ---
 
-## Step 2: Deploy
+## Step 2: Deploy notifications (Telegram)
+
+After merging to `main`, GitHub Actions verifies the Render deployment and sends you a Telegram message:
+
+- ✅ **Success** — Render is serving the new commit
+- ❌ **Failure** — build failed, health check timed out, or Render did not pick up the commit
+
+### GitHub secrets to add
+
+In GitHub → Settings → Secrets and variables → Actions:
+
+| Secret | Value |
+|--------|-------|
+| `RENDER_HEALTH_URL` | Your Render app URL + `/health`, e.g. `https://jobtracker.onrender.com/health` |
+| `TELEGRAM_BOT_TOKEN` | Same token as in Render env vars |
+| `TELEGRAM_CHAT_ID` | Same chat ID as in Render env vars |
+
+The workflow polls `/health` until it sees `Commit: <short-sha>` matching the merged commit (Render provides `RENDER_GIT_COMMIT` automatically).
+
+You can remove old EC2 secrets (`EC2_HOST`, `EC2_USER`, `EC2_KEY`) if you no longer use EC2.
+
+---
+
+## Step 3: Deploy
 
 ```bash
 # Commit changes
