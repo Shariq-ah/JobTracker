@@ -48,10 +48,13 @@ jobs:
 
           MAX_ATTEMPTS=60
           INTERVAL=20
+          LAST_RESPONSE=""
 
           for attempt in $(seq 1 "${MAX_ATTEMPTS}"); do
             RESPONSE=""
             if RESPONSE="$(curl -sf --max-time 15 "${RENDER_HEALTH_URL}" 2>/dev/null)"; then
+              LAST_RESPONSE="${RESPONSE}"
+
               if echo "${RESPONSE}" | grep -q "Commit: ${SHORT_SHA}"; then
                 echo "Render is serving commit ${SHORT_SHA}"
                 echo "health_response=${RESPONSE}" >> "${GITHUB_OUTPUT}"
@@ -66,6 +69,10 @@ jobs:
 
             sleep "${INTERVAL}"
           done
+
+          if [ -n "${LAST_RESPONSE}" ]; then
+            echo "last_health_response=${LAST_RESPONSE}" >> "${GITHUB_OUTPUT}"
+          fi
 
           echo "::error::Timed out waiting for Render to serve commit ${SHORT_SHA}"
           exit 1
@@ -102,6 +109,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LAST_HEALTH_RESPONSE: ${{ steps.render.outputs.last_health_response }}
         run: |
           set -euo pipefail
 
@@ -113,9 +121,23 @@ jobs:
           SHORT_SHA="${GITHUB_SHA:0:7}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           COMMIT_URL="${{ github.event.head_commit.url }}"
+
+          PROD_STATUS="Health check unavailable — app may be down during deploy."
+          if [ -n "${LAST_HEALTH_RESPONSE}" ]; then
+            PROD_COMMIT="$(echo "${LAST_HEALTH_RESPONSE}" | sed -n 's/.*Commit: \([^ |]*\).*/\1/p')"
+            if [ -n "${PROD_COMMIT}" ] && [ "${PROD_COMMIT}" != "${SHORT_SHA}" ]; then
+              PROD_STATUS="Prod is still serving the previous commit <code>${PROD_COMMIT}</code> (expected <code>${SHORT_SHA}</code>)."
+            elif [ -n "${PROD_COMMIT}" ]; then
+              PROD_STATUS="Health reported commit <code>${PROD_COMMIT}</code>, but verification timed out."
+            else
+              PROD_STATUS="Health responded, but no commit was reported yet."
+            fi
+          fi
+
           MESSAGE="❌ <b>JobTracker deployment failed</b>
 
-          Commit: <code>${SHORT_SHA}</code>
+          Expected commit: <code>${SHORT_SHA}</code>
+          ${PROD_STATUS}
           Branch: main
           By: ${{ github.actor }}
           <a href=\"${COMMIT_URL}\">View commit</a>
