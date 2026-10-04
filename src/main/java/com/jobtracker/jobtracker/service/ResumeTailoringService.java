@@ -6,6 +6,7 @@ import com.jobtracker.jobtracker.config.CandidateProfile;
 import com.jobtracker.jobtracker.model.Job;
 import com.jobtracker.jobtracker.model.TailoredResume;
 import com.jobtracker.jobtracker.repository.TailoredResumeRepository;
+import com.jobtracker.jobtracker.util.TracingContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -75,6 +76,7 @@ public class ResumeTailoringService {
      * @return TailoredResume with PDF and ATS score
      */
     public TailoredResume tailorResume(Job job) {
+        TracingContext.setStage(TracingContext.STAGE_TAILOR);
         try {
             log.info("Tailoring resume for: {} at {}", job.getTitle(), job.getCompany());
 
