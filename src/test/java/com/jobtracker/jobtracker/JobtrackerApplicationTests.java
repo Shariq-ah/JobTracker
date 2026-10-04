@@ -3,7 +3,7 @@ package com.jobtracker.jobtracker;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
+@SpringBootTest(properties = "ai.dev.mock.enabled=true")
 class JobtrackerApplicationTests {
 
 
