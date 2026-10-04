@@ -502,7 +502,7 @@ Uncomment a `CommandLineRunner` bean in `JobtrackerApplication.java` to run a sc
 | `AWS_SECRET_ACCESS_KEY` | AWS secret key | Prod only | — |
 | `AWS_BEDROCK_REGION` | AWS region | No | `us-east-1` |
 | `AWS_BEDROCK_MODEL_ID` | Claude model ID | No | `us.anthropic.claude-haiku-4-5-20251001-v1:0` |
-| `AWS_BEDROCK_MAX_TOKENS` | Max response tokens | No | `3000` (base) / `8000` (dev) |
+| `AWS_BEDROCK_MAX_TOKENS` | Max response tokens | No | `3000` |
 | `AI_DEV_MOCK_ENABLED` | Mock AI instead of Bedrock | No | `true` (dev) |
 | `AI_BEDROCK_ENABLED` | Enable/disable Bedrock scoring | No | `true` |
 | `AI_BEDROCK_MIN_LOCAL_SCORE` | Min local score before Bedrock | No | `20` |
