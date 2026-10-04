@@ -17,10 +17,10 @@ public class JobScheduler {
         this.service = service;
     }
 
-    // Fixed delay = waits X minutes AFTER previous job completes
-    // 300000ms = 5 mins (recommended for faster job discovery)
-    // Empty runs (no new jobs) complete in 10-30 seconds with zero cost
-    @Scheduled(fixedDelay = 300000, initialDelay = 10000) // wait 10s on startup, then every 5 mins after completion
+    // Fixed delay = waits after previous job completes (see job.scheduler.* in application.properties)
+    @Scheduled(
+            fixedDelayString = "${job.scheduler.fixed-delay-ms:300000}",
+            initialDelayString = "${job.scheduler.initial-delay-ms:10000}")
     public void run(){
         logMemory("Before job cycle");
 
