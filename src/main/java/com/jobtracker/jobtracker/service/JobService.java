@@ -5,6 +5,7 @@ import com.jobtracker.jobtracker.model.Job;
 import com.jobtracker.jobtracker.provider.DynamicJobProvider;
 import com.jobtracker.jobtracker.provider.JobProvider;
 import com.jobtracker.jobtracker.repository.JobRepository;
+import com.jobtracker.jobtracker.util.TracingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,102 +74,117 @@ public class JobService {
     }
 
     public void checkJobs() {
-        log.info("Checking jobs across {} providers...", providers.size());
+        String cycleId = TracingContext.newCycleId();
+        TracingContext.setCycleId(cycleId);
+        try {
+            log.info("Checking jobs across {} providers... (cycleId={})", providers.size(), cycleId);
 
-        for (JobProvider provider : providers) {
-            log.info("Fetching from: {}", provider.getCompanyName());
+            for (JobProvider provider : providers) {
+                log.info("Fetching from: {}", provider.getCompanyName());
 
-            try {
-                List<Job> jobs = provider.fetchJobs();
-                log.info("{} jobs fetched from {}", jobs.size(), provider.getCompanyName());
+                try {
+                    List<Job> jobs = provider.fetchJobs();
+                    log.info("{} jobs fetched from {}", jobs.size(), provider.getCompanyName());
 
-                // Filter already seen + obvious title mismatches before threading
-                List<Job> newJobs = new ArrayList<>();
-                for (Job job : jobs) {
-                    if (!repository.existsById(job.getId())) {
-                        if (!experienceFilterService.isTitleSuitable(job.getTitle())) {
-                            log.info("Skipping by title (no JD fetch): {}", job.getTitle());
-                            saveSkippedJob(job, "TITLE_FILTER", false);
-                        } else {
-                            newJobs.add(job);
-                        }
-                    }
-                }
-
-                log.info("{} new jobs to process from {}", newJobs.size(), provider.getCompanyName());
-                if (newJobs.isEmpty()) continue;
-
-                long delayMs;
-                int threadCount = 3;
-
-                if (provider instanceof DynamicJobProvider dynamicProvider) {
-                    delayMs = dynamicProvider.getConfig().getJdFetchDelayMs();
-                    threadCount = dynamicProvider.getConfig().getJdFetchThreads();
-                } else {
-                    delayMs = 300;
-                }
-
-                // Check if JD fetching is needed (threadCount=0 means JD already in search response)
-                boolean needsJdFetch = threadCount > 0;
-
-                ExecutorService executor = needsJdFetch ? Executors.newFixedThreadPool(threadCount) : null;
-
-                for (Job job : newJobs) {
-                    final Job jobRef = job;
-
-                    if (needsJdFetch) {
-                        executor.submit(() -> {
-                            try {
-                                Thread.sleep(delayMs);
-
-                                String jd = provider.fetchJobDescription(jobRef.getExternalId());
-
-                                // Skip if JD is empty — rate limited or not available
-    //                            if (jd == null || jd.trim().isEmpty()) {
-    //                                log.info("Skipping job with empty JD: {}", jobRef.getTitle());
-    //                                return;
-    //                            }
-
-                                jobRef.setDescription(jd);
-
-                                processJob(provider, jobRef);
-
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                log.error("Thread interrupted for: {}", jobRef.getTitle());
-                            } catch (Exception e) {
-                                log.error("Error processing {} during JD fetch: {}", jobRef.getTitle(), e.getMessage());
+                    // Filter already seen + obvious title mismatches before threading
+                    List<Job> newJobs = new ArrayList<>();
+                    for (Job job : jobs) {
+                        if (!repository.existsById(job.getId())) {
+                            if (!experienceFilterService.isTitleSuitable(job.getTitle())) {
+                                log.info("Skipping by title (no JD fetch): {}", job.getTitle());
+                                saveSkippedJob(job, "TITLE_FILTER", false);
+                            } else {
+                                newJobs.add(job);
                             }
-                        });
-                    } else {
-                        // Description already in job object (e.g., Amazon), process directly
-                        try {
-                            processJob(provider, jobRef);
-                        } catch (Exception e) {
-                            log.error("Error processing {} without JD fetch: {}", jobRef.getTitle(), e.getMessage());
                         }
                     }
-                }
 
-                // Wait for all threads to complete (only if JD fetching was needed)
-                if (needsJdFetch) {
-                    executor.shutdown();
-                    boolean finished = executor.awaitTermination(2, TimeUnit.MINUTES);
-                    if (!finished) {
-                        log.warn("Timeout waiting for JD fetches from {}", provider.getCompanyName());
-                        executor.shutdownNow();
+                    log.info("{} new jobs to process from {}", newJobs.size(), provider.getCompanyName());
+                    if (newJobs.isEmpty()) continue;
+
+                    long delayMs;
+                    int threadCount = 3;
+
+                    if (provider instanceof DynamicJobProvider dynamicProvider) {
+                        delayMs = dynamicProvider.getConfig().getJdFetchDelayMs();
+                        threadCount = dynamicProvider.getConfig().getJdFetchThreads();
+                    } else {
+                        delayMs = 300;
                     }
+
+                    // Check if JD fetching is needed (threadCount=0 means JD already in search response)
+                    boolean needsJdFetch = threadCount > 0;
+
+                    ExecutorService executor = needsJdFetch ? Executors.newFixedThreadPool(threadCount) : null;
+                    final String providerName = provider.getCompanyName();
+
+                    for (Job job : newJobs) {
+                        final Job jobRef = job;
+
+                        if (needsJdFetch) {
+                            executor.submit(() -> TracingContext.runWithJob(
+                                    cycleId,
+                                    jobRef.getId(),
+                                    providerName,
+                                    TracingContext.STAGE_JD_FETCH,
+                                    () -> {
+                                        try {
+                                            Thread.sleep(delayMs);
+
+                                            String jd = provider.fetchJobDescription(jobRef.getExternalId());
+                                            jobRef.setDescription(jd);
+
+                                            processJob(provider, jobRef);
+
+                                        } catch (InterruptedException e) {
+                                            Thread.currentThread().interrupt();
+                                            log.error("Thread interrupted for: {}", jobRef.getTitle());
+                                        } catch (Exception e) {
+                                            log.error("Error processing {} during JD fetch: {}",
+                                                    jobRef.getTitle(), e.getMessage());
+                                        }
+                                    }));
+                        } else {
+                            TracingContext.runWithJob(
+                                    cycleId,
+                                    jobRef.getId(),
+                                    providerName,
+                                    TracingContext.STAGE_LOCAL_MATCH,
+                                    () -> {
+                                        try {
+                                            processJob(provider, jobRef);
+                                        } catch (Exception e) {
+                                            log.error("Error processing {} without JD fetch: {}",
+                                                    jobRef.getTitle(), e.getMessage());
+                                        }
+                                    });
+                        }
+                    }
+
+                    // Wait for all threads to complete (only if JD fetching was needed)
+                    if (needsJdFetch) {
+                        executor.shutdown();
+                        boolean finished = executor.awaitTermination(2, TimeUnit.MINUTES);
+                        if (!finished) {
+                            log.warn("Timeout waiting for JD fetches from {}", provider.getCompanyName());
+                            executor.shutdownNow();
+                        }
+                    }
+
+                } catch (Exception e) {
+                    log.error("Error processing provider {}: {}", provider.getCompanyName(), e.getMessage());
                 }
-
-            } catch (Exception e) {
-                log.error("Error processing provider {}: {}", provider.getCompanyName(), e.getMessage());
             }
-        }
 
-        log.info("Job check completed.");
+            log.info("Job check completed.");
+        } finally {
+            TracingContext.clear();
+        }
     }
 
     private void processJob(JobProvider provider, Job jobRef) {
+        TracingContext.setStage(TracingContext.STAGE_LOCAL_MATCH);
+
         // Update postedAt with exact time if available (for Oracle HCM and Workday providers)
         if (provider instanceof DynamicJobProvider dynamicProvider) {
             var handler = dynamicProvider.getHandler();
@@ -215,6 +231,7 @@ public class JobService {
         }
 
         // Extract structured data only for jobs that passed cheap local checks.
+        TracingContext.setStage(TracingContext.STAGE_BEDROCK);
         jdExtractionService.extractStructuredData(jobRef);
         jobRef.setAiAnalyzed(true);
 
@@ -228,6 +245,7 @@ public class JobService {
         matched.setSkipped(false);
         matched.setSkipReason(null);
         matched.setAiAnalyzed(true);
+        TracingContext.setStage(TracingContext.STAGE_LOCAL_MATCH);
         saveMatchedJob(matched);
     }
 
@@ -258,14 +276,17 @@ public class JobService {
                 return;
             }
 
+            TracingContext.setStage(TracingContext.STAGE_TELEGRAM);
             sendTelegram(matched);
 
             if (shouldTailorResume(aiScore)) {
                 try {
+                    TracingContext.setStage(TracingContext.STAGE_TAILOR);
                     log.info("Generating AI-tailored resume for: {} (AI Score: {}%, threshold: {}%)",
                             matched.getTitle(), aiScore, resumeTailoringMinScore);
 
                     var tailoredResume = resumeTailoringService.tailorResume(matched);
+                    TracingContext.setStage(TracingContext.STAGE_TELEGRAM);
                     telegramService.sendTailoredResume(matched, tailoredResume);
 
                     log.info("✅ Tailored resume sent | ATS Score: {} | Cost: $0.004",
@@ -273,6 +294,7 @@ public class JobService {
                 } catch (Exception e) {
                     log.error("❌ Tailoring failed: {}", e.getMessage());
 
+                    TracingContext.setStage(TracingContext.STAGE_TELEGRAM);
                     telegramService.sendGeneralResume(matched, "AI tailoring failed - using general resume");
                     log.info("✅ General resume sent as fallback | Cost: $0");
                 }
@@ -282,6 +304,7 @@ public class JobService {
                         : "Score below tailoring threshold (" + (int) resumeTailoringMinScore + "%)";
                 log.info("Skipping AI tailoring (score {}%, threshold {}%, enabled={}), sending general resume | Cost: $0",
                         aiScore, resumeTailoringMinScore, resumeTailoringEnabled);
+                TracingContext.setStage(TracingContext.STAGE_TELEGRAM);
                 telegramService.sendGeneralResume(matched, reason);
             }
         }

@@ -3,6 +3,7 @@ package com.jobtracker.jobtracker.service;
 import com.jobtracker.jobtracker.config.CandidateProfile;
 import com.jobtracker.jobtracker.model.Job;
 import com.jobtracker.jobtracker.model.WorkMode;
+import com.jobtracker.jobtracker.util.TracingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,7 @@ public class JdExtractionService {
      * Falls back gracefully on any error - never throws exceptions.
      */
     public Job extractStructuredData(Job job) {
+        TracingContext.setStage(TracingContext.STAGE_BEDROCK);
         String description = job.getDescription();
 
         // Validate input

@@ -2,6 +2,7 @@ package com.jobtracker.jobtracker.service;
 
 import com.jobtracker.jobtracker.model.Job;
 import com.jobtracker.jobtracker.model.TailoredResume;
+import com.jobtracker.jobtracker.util.TracingContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
@@ -41,6 +42,7 @@ public class TelegramService {
      * @param resume Tailored resume with PDF and ATS score
      */
     public void sendTailoredResume(Job job, TailoredResume resume) {
+        TracingContext.setStage(TracingContext.STAGE_TELEGRAM);
         try {
             String url = "https://api.telegram.org/bot" + botToken + "/sendDocument";
 
@@ -136,6 +138,7 @@ public class TelegramService {
      * Cost: $0 (no AI, uses pre-compiled PDF)
      */
     public void sendGeneralResume(Job job, String reason) {
+        TracingContext.setStage(TracingContext.STAGE_TELEGRAM);
         try {
             byte[] generalPdf = generalResumeService.getGeneralResumePdf();
 
